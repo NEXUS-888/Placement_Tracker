@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Placement Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .custom-scroll::-webkit-scrollbar { width: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-12 select-none">
+
+  <!-- Notification Permission Banner (shown if permission is missing on phone) -->
+  <div id="permission-banner" class="hidden bg-gradient-to-r from-amber-600 to-amber-700 text-white px-4 py-3 text-xs flex items-center justify-between shadow-lg sticky top-0 z-40">
+    <div class="flex items-center space-x-2">
+      <i class="fa-solid fa-bell-slash text-base"></i>
+      <span>Enable Notification Access to auto-read WhatsApp placement groups.</span>
+    </div>
+    <button onclick="requestPermission()" class="bg-white text-slate-900 font-bold px-3 py-1 rounded-md text-[11px] shadow whitespace-nowrap ml-2">
+      Enable
+    </button>
+  </div>
+
+  <!-- Top App Bar -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3.5 flex items-center justify-between sticky top-0 z-30 backdrop-blur">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
+        <i class="fa-solid fa-graduation-cap text-sm"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base leading-tight">Placement Tracker</h1>
+        <p class="text-[10px] text-emerald-400 font-medium flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+          <span>WhatsApp Monitor Active</span>
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2">
+      <button onclick="toggleSimulator()" class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 shadow">
+        <i class="fa-solid fa-flask"></i>
+        <span>Test</span>
+      </button>
+      <button onclick="refreshAll()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs" title="Refresh">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="p-4 space-y-4 max-w-lg mx-auto">
+
+    <!-- App Settings Card: Group & Gemini Key -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center space-x-1">
+          <i class="fa-brands fa-whatsapp text-emerald-400"></i>
+          <span>Target WhatsApp Group</span>
+        </label>
+        <div class="flex space-x-2">
+          <input type="text" id="target-group-input" placeholder="e.g. 2026 Placements (or leave blank for all)" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+          <button onclick="saveTargetGroup()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg shadow">
+            Save
+          </button>
+        </div>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center space-x-1">
+          <i class="fa-solid fa-key text-indigo-400"></i>
+          <span>Gemini API Key</span>
+        </label>
+        <div class="flex space-x-2">
+          <input type="password" id="api-key-input" placeholder="Paste your Gemini API key" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+          <button onclick="saveApiKey()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg shadow">
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat Metric Cards -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+          <span>Active Drives</span>
+          <i class="fa-solid fa-bolt text-emerald-400 text-xs"></i>
+        </div>
+        <div class="text-2xl font-black text-emerald-400" id="stat-active">0</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Upcoming / Ongoing</div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+          <span>Updates Logged</span>
+          <i class="fa-solid fa-timeline text-amber-400 text-xs"></i>
+        </div>
+        <div class="text-2xl font-black text-amber-400" id="stat-updates">0</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Amendments detected</div>
+      </div>
+    </div>
+
+    <!-- Simulator Modal / Drawer -->
+    <div id="simulator-panel" class="hidden bg-slate-900 border border-indigo-500/40 rounded-xl p-4 shadow-xl space-y-3">
+      <div class="flex justify-between items-center">
+        <h2 class="font-bold text-xs text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
+          <i class="fa-solid fa-flask"></i>
+          <span>Simulate Announcement</span>
+        </h2>
+        <button onclick="toggleSimulator()" class="text-slate-400 hover:text-white p-1 text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <textarea id="sim-text" rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs focus:border-indigo-500 focus:outline-none" placeholder="Paste placement text to simulate incoming WhatsApp message..."></textarea>
+
+      <div class="flex justify-between items-center pt-1">
+        <button onclick="loadSample('new')" class="text-[11px] text-indigo-400 font-medium">Sample New</button>
+        <button onclick="loadSample('update')" class="text-[11px] text-amber-400 font-medium">Sample Update</button>
+        <button id="sim-submit-btn" onclick="submitSimulation()" class="px-3 py-1.5 bg-indigo-600 text-white font-semibold text-xs rounded-lg shadow">
+          Process
+        </button>
+      </div>
+      <div id="sim-result" class="hidden p-2.5 rounded-lg text-[10px] font-mono whitespace-pre-wrap"></div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="space-y-3">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+        <input type="text" id="search-input" onkeyup="filterDrives()" placeholder="Search company, role, package..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs focus:border-indigo-500 focus:outline-none text-slate-200">
+      </div>
+
+      <!-- Filter Pills -->
+      <div class="flex items-center space-x-1.5 overflow-x-auto custom-scroll pb-1" id="filter-tabs">
+        <button onclick="setFilter('all')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap" data-status="all">All</button>
+        <button onclick="setFilter('Upcoming')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Upcoming">Upcoming</button>
+        <button onclick="setFilter('Applied')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Applied">Applied</button>
+        <button onclick="setFilter('Ongoing')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Ongoing">Ongoing</button>
+        <button onclick="setFilter('Closed')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Closed">Closed</button>
+      </div>
+    </div>
+
+    <!-- Drives List -->
+    <div id="drives-container" class="space-y-3">
+      <!-- Injected via JS -->
+    </div>
+
+    <div id="empty-state" class="hidden text-center py-12 text-slate-500 space-y-2">
+      <i class="fa-solid fa-inbox text-3xl"></i>
+      <p class="text-xs">No placement announcements recorded yet.</p>
+    </div>
+
+  </main>
+
+  <!-- Drive Details & Timeline Modal -->
+  <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+        <div>
+          <span id="modal-job-type" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase">Full-time</span>
+          <h2 id="modal-company" class="text-xl font-black text-white mt-1">Company</h2>
+          <p id="modal-role" class="text-slate-400 text-xs">Role</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Package / CTC</div>
+          <div id="modal-ctc" class="font-semibold text-emerald-400 mt-0.5">Not disclosed</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Deadline</div>
+          <div id="modal-deadline" class="font-semibold text-amber-400 mt-0.5">TBD</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Drive Date</div>
+          <div id="modal-drive-date" class="font-medium text-slate-300 mt-0.5">TBD</div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Eligibility</div>
+          <div id="modal-eligibility" class="font-medium text-slate-300 mt-0.5">Refer details</div>
+        </div>
+      </div>
+
+      <!-- Update Timeline -->
+      <div>
+        <h3 class="text-xs font-bold text-slate-300 flex items-center space-x-1.5 mb-2">
+          <i class="fa-solid fa-timeline text-amber-400"></i>
+          <span>Coordinator Changes & Timeline</span>
+        </h3>
+        <div id="modal-updates-list" class="space-y-2 max-h-36 overflow-y-auto custom-scroll"></div>
+      </div>
+
+      <!-- Original Announcement -->
+      <div>
+        <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">WhatsApp Post</h3>
+        <div id="modal-raw" class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px] text-slate-400 font-mono whitespace-pre-wrap max-h-24 overflow-y-auto custom-scroll"></div>
+      </div>
+
+      <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+        <select id="modal-status-select" onchange="changeDriveStatusFromModal()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200">
+          <option value="Upcoming">Upcoming</option>
+          <option value="Applied">Applied</option>
+          <option value="Ongoing">Ongoing</option>
+          <option value="Shortlisted">Shortlisted</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <a id="modal-apply-btn" href="#" target="_blank" class="px-4 py-1.5 bg-emerald-600 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5">
+          <span>Apply</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const isAndroid = typeof window.AndroidBridge !== 'undefined';
+    let currentFilter = 'all';
+    let activeModalDriveId = null;
+
+    function checkPermissions() {
+      if (isAndroid) {
+        const granted = window.AndroidBridge.isNotificationAccessGranted();
+        const banner = document.getElementById('permission-banner');
+        if (!granted) {
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+    }
+
+    function requestPermission() {
+      if (isAndroid) {
+        window.AndroidBridge.openNotificationSettings();
+      }
+    }
+
+    function refreshAll() {
+      checkPermissions();
+      fetchStats();
+      filterDrives();
+    }
+
+    function fetchStats() {
+      if (isAndroid) {
+        const stats = JSON.parse(window.AndroidBridge.getStats());
+        document.getElementById('stat-active').textContent = stats.active_drives || 0;
+        document.getElementById('stat-updates').textContent = stats.total_updates || 0;
+      } else {
+        fetch('/api/stats').then(r => r.json()).then(stats => {
+          document.getElementById('stat-active').textContent = stats.active_drives || 0;
+          document.getElementById('stat-updates').textContent = stats.total_updates || 0;
+        });
+      }
+    }
+
+    function filterDrives() {
+      const search = document.getElementById('search-input').value.trim();
+      if (isAndroid) {
+        const drives = JSON.parse(window.AndroidBridge.getDrives(currentFilter, search));
+        renderDrives(drives);
+      } else {
+        let url = `/api/drives?status=${currentFilter}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        fetch(url).then(r => r.json()).then(renderDrives);
+      }
+    }
+
+    function renderDrives(drives) {
+      const container = document.getElementById('drives-container');
+      const emptyState = document.getElementById('empty-state');
+      container.innerHTML = '';
+
+      if (!drives || drives.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      drives.forEach(d => {
+        const statusColors = {
+          'Upcoming': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+          'Applied': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+          'Ongoing': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+          'Shortlisted': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+          'Rejected': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+          'Closed': 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+        };
+        const statusClass = statusColors[d.status] || statusColors['Upcoming'];
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-2.5 active:border-indigo-500/50 transition";
+        card.onclick = (e) => {
+          if (e.target.tagName !== 'SELECT' && e.target.tagName !== 'A' && e.target.tagName !== 'I') {
+            openModal(d.id);
+          }
+        };
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-[9px] uppercase font-black tracking-wider px-2 py-0.5 rounded-full border ${statusClass}">
+                ${d.status}
+              </span>
+              <h3 class="text-base font-black text-white mt-1">${escapeHtml(d.company_name)}</h3>
+              <p class="text-xs text-slate-400">${escapeHtml(d.role)} • <span class="text-indigo-400 font-medium">${escapeHtml(d.job_type)}</span></p>
+            </div>
+            <button onclick="openModal(${d.id})" class="text-slate-500 hover:text-white p-1">
+              <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-slate-800/80">
+            <div><span class="text-slate-500">Package:</span> <span class="text-emerald-400 font-semibold">${escapeHtml(d.ctc_or_stipend || 'Not disclosed')}</span></div>
+            <div><span class="text-slate-500">Deadline:</span> <span class="text-amber-400 font-semibold">${escapeHtml(d.deadline || 'TBD')}</span></div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openModal(id) {
+      activeModalDriveId = id;
+      let drive = null;
+      if (isAndroid) {
+        drive = JSON.parse(window.AndroidBridge.getDriveDetails(id));
+      }
+
+      if (!drive || !drive.company_name) {
+        fetch(`/api/drives/${id}`).then(r => r.json()).then(renderModalContent);
+      } else {
+        renderModalContent(drive);
+      }
+    }
+
+    function renderModalContent(drive) {
+      document.getElementById('modal-company').textContent = drive.company_name;
+      document.getElementById('modal-role').textContent = `${drive.role} (${drive.job_type})`;
+      document.getElementById('modal-job-type').textContent = drive.job_type;
+      document.getElementById('modal-ctc').textContent = drive.ctc_or_stipend || 'Not disclosed';
+      document.getElementById('modal-deadline').textContent = drive.deadline || 'TBD';
+      document.getElementById('modal-drive-date').textContent = drive.drive_date || 'TBD';
+      document.getElementById('modal-eligibility').textContent = drive.eligibility_criteria || 'Refer details';
+      document.getElementById('modal-raw').textContent = drive.raw_message || 'No raw message';
+      document.getElementById('modal-status-select').value = drive.status;
+
+      const applyBtn = document.getElementById('modal-apply-btn');
+      if (drive.apply_link) {
+        applyBtn.href = drive.apply_link;
+        applyBtn.classList.remove('hidden');
+      } else {
+        applyBtn.classList.add('hidden');
+      }
+
+      const updatesContainer = document.getElementById('modal-updates-list');
+      updatesContainer.innerHTML = '';
+      if (drive.updates && drive.updates.length > 0) {
+        drive.updates.forEach(u => {
+          const item = document.createElement('div');
+          item.className = "p-2 bg-slate-950 rounded-lg border border-slate-800/80 text-[11px] space-y-0.5";
+          item.innerHTML = `
+            <div class="flex justify-between items-center text-slate-500 text-[10px]">
+              <span class="font-bold text-amber-400 uppercase">${escapeHtml(u.field_changed)}</span>
+              <span>${u.created_at || ''}</span>
+            </div>
+            <p class="text-slate-200">${escapeHtml(u.change_summary)}</p>
+            ${u.old_value ? `<div class="text-[10px] text-slate-500 line-through">${escapeHtml(u.old_value)} ➔ <span class="text-emerald-400">${escapeHtml(u.new_value)}</span></div>` : ''}
+          `;
+          updatesContainer.appendChild(item);
+        });
+      } else {
+        updatesContainer.innerHTML = '<div class="text-[11px] text-slate-500 italic">No updates recorded. Original post holds.</div>';
+      }
+
+      document.getElementById('details-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('details-modal').classList.add('hidden');
+      activeModalDriveId = null;
+    }
+
+    function changeDriveStatusFromModal() {
+      if (!activeModalDriveId) return;
+      const status = document.getElementById('modal-status-select').value;
+      if (isAndroid) {
+        window.AndroidBridge.updateDriveStatus(activeModalDriveId, status);
+        fetchStats();
+        filterDrives();
+      } else {
+        fetch(`/api/drives/${activeModalDriveId}/status`, {
+          method: 'PATCH',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ status })
+        }).then(() => {
+          fetchStats();
+          filterDrives();
+        });
+      }
+    }
+
+    function setFilter(status) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-tab').forEach(b => {
+        if (b.dataset.status === status) {
+          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap";
+        } else {
+          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap";
+        }
+      });
+      filterDrives();
+    }
+
+    function toggleSimulator() {
+      document.getElementById('simulator-panel').classList.toggle('hidden');
+    }
+
+    function loadSample(type) {
+      if (type === 'new') {
+        document.getElementById('sim-text').value = 
+`Google is conducting campus drive for Software Engineer Intern (2026 Batch).\nStipend: 1,20,000 per month\nEligibility: B.Tech CSE/IT with CGPA >= 7.5.\nDeadline: 28th September 2026 5:00 PM\nLink: https://careers.google.com/jobs/intern`;
+      } else {
+        document.getElementById('sim-text').value = 
+`URGENT UPDATE regarding Google Drive:\nGoogle registration deadline extended to 30th September 2026.\nECE students are now also eligible.`;
+      }
+    }
+
+    function submitSimulation() {
+      const text = document.getElementById('sim-text').value.trim();
+      if (!text) return;
+      const resBox = document.getElementById('sim-result');
+      resBox.classList.remove('hidden');
+
+      if (isAndroid) {
+        const res = window.AndroidBridge.simulateMessage(text);
+        resBox.textContent = res;
+        refreshAll();
+      } else {
+        const formData = new FormData();
+        formData.append('text', text);
+        fetch('/api/webhook/incoming', { method: 'POST', body: formData })
+          .then(r => r.json())
+          .then(res => {
+            resBox.textContent = JSON.stringify(res, null, 2);
+            refreshAll();
+          });
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+    }
+
+    function loadTargetGroup() {
+      if (isAndroid) {
+        const grp = window.AndroidBridge.getTargetGroup();
+        document.getElementById('target-group-input').value = grp || '';
+        const key = window.AndroidBridge.getApiKey();
+        document.getElementById('api-key-input').value = key || '';
+      }
+    }
+
+    function saveTargetGroup() {
+      const grp = document.getElementById('target-group-input').value.trim();
+      if (isAndroid) {
+        window.AndroidBridge.setTargetGroup(grp);
+        alert(grp ? `Monitoring WhatsApp group: "${grp}"` : 'Monitoring all groups with placement keywords.');
+      } else {
+        alert(grp ? `Target group saved: "${grp}"` : 'Target group cleared.');
+      }
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('api-key-input').value.trim();
+      if (isAndroid) {
+        window.AndroidBridge.setApiKey(key);
+        alert('Gemini API key saved securely on device!');
+      } else {
+        alert('API key entered: ' + (key ? 'Saved' : 'Cleared'));
+      }
+    }
+
+    // Init
+    loadTargetGroup();
+    refreshAll();
+  </script>
+</body>
+</html>

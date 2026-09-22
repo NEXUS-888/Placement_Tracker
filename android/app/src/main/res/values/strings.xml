@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Placement Tracker</string>
+    <string name="service_name">Placement WhatsApp Monitor</string>
+</resources>

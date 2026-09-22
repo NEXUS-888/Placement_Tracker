@@ -1,0 +1,34 @@
+# Environment and Secrets
+.env
+*.env.local
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Databases & Uploads
+*.db
+*.sqlite3
+uploads/
+*.log
+
+# Node & WhatsApp Session
+node_modules/
+.wwebjs_auth/
+.wwebjs_cache/
+npm-debug.log*
+
+# Android & Gradle
+.gradle/
+build/
+app/build/
+*.iml
+.idea/
+local.properties
+.DS_Store
+*.apk
+*.aab

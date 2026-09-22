@@ -1,0 +1,13 @@
+{
+  "name": "placement-tracker-bridge",
+  "version": "1.0.0",
+  "description": "Read-only WhatsApp bridge for Placement Tracker",
+  "main": "whatsapp_listener.js",
+  "scripts": {
+    "start": "node whatsapp_listener.js"
+  },
+  "dependencies": {
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}
