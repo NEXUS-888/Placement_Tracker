@@ -4,9 +4,11 @@ from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import re
+from datetime import datetime, timezone, timedelta
 
 import db
 import analyzer
@@ -70,6 +72,133 @@ def get_profile():
 @app.post("/api/profile")
 def save_profile(payload: ProfileRequest):
     return db.save_student_profile(payload.model_dump())
+
+MONTHS_MAP = {
+    'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3, 'apr': 4, 'april': 4,
+    'may': 5, 'jun': 6, 'june': 6, 'jul': 7, 'july': 7, 'aug': 8, 'august': 8, 'sep': 9, 'sept': 9, 'september': 9,
+    'oct': 10, 'october': 10, 'nov': 11, 'november': 11, 'dec': 12, 'december': 12
+}
+
+def parse_deadline_datetime(text: str) -> Optional[datetime]:
+    if not text:
+        return None
+    s = text.strip()
+    
+    # Extract time (e.g. 4:00PM or 11:30 AM)
+    time_m = re.search(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)', s, re.I)
+    hours, minutes = 17, 0
+    if time_m:
+        h = int(time_m.group(1))
+        m = int(time_m.group(2)) if time_m.group(2) else 0
+        meridian = time_m.group(3).lower()
+        if meridian == 'pm' and h < 12: h += 12
+        if meridian == 'am' and h == 12: h = 0
+        hours, minutes = h, m
+    else:
+        time_24 = re.search(r'\b(\d{1,2}):(\d{2})\b', s)
+        if time_24:
+            hours, minutes = int(time_24.group(1)), int(time_24.group(2))
+
+    day, month, year = None, None, None
+    # Case 1: 17th Sep 2026 or 17 September 2026
+    dmy = re.search(r'(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})[,\s]+(\d{4})', s, re.I)
+    if dmy and dmy.group(2).lower() in MONTHS_MAP:
+        day = int(dmy.group(1))
+        month = MONTHS_MAP[dmy.group(2).lower()]
+        year = int(dmy.group(3))
+
+    # Case 2: Sep 17th, 2026
+    if not year:
+        mdy = re.search(r'([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(\d{4})', s, re.I)
+        if mdy and mdy.group(1).lower() in MONTHS_MAP:
+            month = MONTHS_MAP[mdy.group(1).lower()]
+            day = int(mdy.group(2))
+            year = int(mdy.group(3))
+
+    # Case 3: 24-09-2026 or 24/09/2026
+    if not year:
+        num = re.search(r'(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})', s)
+        if num:
+            day = int(num.group(1))
+            month = int(num.group(2))
+            year = int(num.group(3))
+
+    if year and month and day:
+        # Create in Indian Standard Time (UTC+05:30)
+        ist = timezone(timedelta(hours=5, minutes=30))
+        return datetime(year, month, day, hours, minutes, tzinfo=ist)
+    return None
+
+def generate_ical_feed() -> str:
+    drives = db.get_all_drives()
+    now_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Placement Tracker//Campus Drives//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "X-WR-CALNAME:Campus Placement Deadlines",
+        "X-WR-TIMEZONE:Asia/Kolkata",
+    ]
+
+    for d in drives:
+        deadline_str = d.get("deadline", "")
+        dt = parse_deadline_datetime(deadline_str)
+        if not dt:
+            continue
+        
+        end_utc = dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        start_utc = (dt - timedelta(hours=1)).astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        
+        company = d.get("company_name", "Company")
+        role = d.get("role", "Software Role")
+        apply_link = d.get("apply_link", "")
+        ctc = d.get("ctc_or_stipend", "Not disclosed")
+        drive_id = d.get("id")
+        
+        summary = f"Deadline: {company} Placement Registration"
+        description = f"Company: {company}\\nRole: {role}\\nCTC: {ctc}\\nApply Link: {apply_link}\\nDeadline: {deadline_str}"
+
+        lines.extend([
+            "BEGIN:VEVENT",
+            f"UID:placement-drive-{drive_id}@placementtracker",
+            f"DTSTAMP:{now_utc}",
+            f"DTSTART:{start_utc}",
+            f"DTEND:{end_utc}",
+            f"SUMMARY:{summary}",
+            f"DESCRIPTION:{description}",
+            "LOCATION:Online",
+            "STATUS:CONFIRMED",
+            "BEGIN:VALARM",
+            "TRIGGER:-PT2H",
+            "ACTION:DISPLAY",
+            "DESCRIPTION:Placement Registration Deadline Approaching!",
+            "END:VALARM",
+            "BEGIN:VALARM",
+            "TRIGGER:-PT30M",
+            "ACTION:DISPLAY",
+            "DESCRIPTION:URGENT: Placement Form closes in 30 minutes!",
+            "END:VALARM",
+            "END:VEVENT"
+        ])
+
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines)
+
+@app.get("/api/calendar.ics")
+def get_calendar_ics():
+    """
+    Live subscribable iCal / Webcal feed.
+    When added to Google Calendar, any updated deadline or rescheduled drive
+    automatically syncs and shifts the event to the new time!
+    """
+    content = generate_ical_feed()
+    return Response(
+        content=content,
+        media_type="text/calendar",
+        headers={"Content-Disposition": "inline; filename=placement_deadlines.ics"}
+    )
 
 @app.get("/api/drives")
 def list_drives(status: Optional[str] = Query(None), search: Optional[str] = Query(None)):

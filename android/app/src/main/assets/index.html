@@ -84,6 +84,9 @@
         <i class="fa-regular fa-user text-[10px] text-indigo-400"></i>
         <span id="top-usn-label">1DB23CS001</span>
       </div>
+      <button onclick="openCalendarModal()" class="w-7 h-7 rounded-md bg-[#161b26] border border-cyan-500/40 hover:bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs tactile-press" title="Auto-Sync Live Calendar Feed">
+        <i class="fa-regular fa-calendar-check"></i>
+      </button>
       <button onclick="refreshAll()" class="w-7 h-7 rounded-md bg-[#161b26] border border-[#252c3d] hover:text-white text-slate-400 flex items-center justify-center text-xs tactile-press" title="Sync">
         <i class="fa-solid fa-arrows-rotate"></i>
       </button>
@@ -459,6 +462,59 @@
     </div>
   </div>
 
+  <!-- CALENDAR AUTO-SYNC MODAL -->
+  <div id="calendar-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-[#10141d] border border-cyan-500/30 rounded-2xl w-full max-w-sm p-4 space-y-3.5 shadow-2xl relative">
+      <div class="flex items-center justify-between border-b border-[#1c2333] pb-2.5">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <i class="fa-regular fa-calendar-check text-xs"></i>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono-code">Auto-Updating Calendar</h3>
+            <p class="text-[10px] text-slate-400 font-mono-code">Live Dynamic Feed (.ics)</p>
+          </div>
+        </div>
+        <button onclick="closeCalendarModal()" class="w-6 h-6 rounded-md hover:bg-slate-800 text-slate-400 flex items-center justify-center text-xs">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="p-2.5 bg-cyan-950/25 border border-cyan-500/25 rounded-xl space-y-1 text-[11px] text-slate-300">
+        <div class="font-bold text-cyan-400 flex items-center space-x-1.5 font-mono-code text-[11px]">
+          <i class="fa-solid fa-arrows-rotate text-[10px] text-cyan-400"></i>
+          <span>Will Timings Auto-Update? YES!</span>
+        </div>
+        <p class="text-[10px] text-slate-300 leading-relaxed">
+          When you subscribe to this live feed, if a coordinator extends a registration deadline or reschedules a test, your Google Calendar automatically updates the event timing without you touching it!
+        </p>
+      </div>
+
+      <!-- Action 1: Google Calendar 1-Click Subscribe -->
+      <a id="gcal-sub-link" href="#" target="_blank" class="w-full py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-extrabold font-mono-code rounded-xl flex items-center justify-center space-x-2 shadow-sm tactile-press">
+        <i class="fa-brands fa-google"></i>
+        <span>Subscribe in Google Calendar</span>
+      </a>
+
+      <!-- Action 2: Copy Webcal URL -->
+      <div class="space-y-1">
+        <div class="text-[10px] font-mono-code text-slate-400">Or subscribe in Apple Calendar / Outlook:</div>
+        <div class="flex items-center space-x-1.5">
+          <input type="text" id="webcal-input" readonly class="flex-1 bg-[#090b10] border border-[#202738] rounded-lg px-2 py-1.5 text-[10px] font-mono-code text-slate-300 select-all focus:outline-none">
+          <button onclick="copyWebcalLink()" class="px-2.5 py-1.5 bg-[#182030] hover:bg-[#202b40] border border-[#2b3750] text-cyan-300 text-[10px] font-mono-code font-bold rounded-lg tactile-press">
+            Copy
+          </button>
+        </div>
+      </div>
+
+      <!-- Action 3: Download .ics -->
+      <a href="/api/calendar.ics" download="placement_deadlines.ics" class="w-full py-1.5 bg-[#141824] hover:bg-[#1a2030] border border-[#252f44] text-slate-300 text-[10px] font-mono-code font-semibold rounded-lg flex items-center justify-center space-x-1.5 tactile-press">
+        <i class="fa-solid fa-download text-[9px]"></i>
+        <span>Download .ics file</span>
+      </a>
+    </div>
+  </div>
+
   <!-- Bottom Navigation Dock -->
   <nav class="fixed bottom-0 left-0 right-0 bg-[#0e1118]/95 border-t border-[#1c222e] px-4 py-2 flex justify-around items-center z-40 backdrop-blur-md">
     <button onclick="switchTab('drives')" class="nav-btn flex flex-col items-center text-indigo-400 space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="drives">
@@ -804,12 +860,82 @@
       });
     }
 
+    function parsePlacementDeadline(str) {
+      if (!str) return null;
+      const MONTHS = {
+        jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
+        may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8, september: 8,
+        oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11
+      };
+      
+      let year, month, day, hours = 17, minutes = 0;
+      
+      const timeM = str.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+      if (timeM) {
+        let h = parseInt(timeM[1], 10);
+        const m = timeM[2] ? parseInt(timeM[2], 10) : 0;
+        const meridian = timeM[3].toLowerCase();
+        if (meridian === 'pm' && h < 12) h += 12;
+        if (meridian === 'am' && h === 12) h = 0;
+        hours = h;
+        minutes = m;
+      } else {
+        const time24 = str.match(/\b(\d{1,2}):(\d{2})\b/);
+        if (time24) {
+          hours = parseInt(time24[1], 10);
+          minutes = parseInt(time24[2], 10);
+        }
+      }
+
+      const dmy = str.match(/(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})[,\s]+(\d{4})/i);
+      if (dmy && MONTHS[dmy[2].toLowerCase()] !== undefined) {
+        day = parseInt(dmy[1], 10);
+        month = MONTHS[dmy[2].toLowerCase()];
+        year = parseInt(dmy[3], 10);
+      }
+
+      if (year === undefined) {
+        const mdy = str.match(/([A-Za-z]{3,9})\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(\d{4})/i);
+        if (mdy && MONTHS[mdy[1].toLowerCase()] !== undefined) {
+          month = MONTHS[mdy[1].toLowerCase()];
+          day = parseInt(mdy[2], 10);
+          year = parseInt(mdy[3], 10);
+        }
+      }
+
+      if (year === undefined) {
+        const numeric = str.match(/(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+        if (numeric) {
+          day = parseInt(numeric[1], 10);
+          month = parseInt(numeric[2], 10) - 1;
+          year = parseInt(numeric[3], 10);
+        }
+      }
+
+      if (year !== undefined && month !== undefined && day !== undefined) {
+        return new Date(Date.UTC(year, month, day, hours - 5, minutes - 30));
+      }
+      return null;
+    }
+
     function syncCalendar(company, deadline, applyLink) {
       const title = encodeURIComponent(`Deadline: ${company} Placement Registration`);
-      const details = encodeURIComponent(`DBIT Campus Recruitment Drive for ${company}.\nApply link: ${applyLink}\nSubmit before form closes!`);
-      const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=Online`;
+      const details = encodeURIComponent(`DBIT Campus Recruitment Drive for ${company}.\nRegistration Deadline: ${deadline}\nApply link: ${applyLink}\nSubmit before form closes!`);
+      
+      const parsedDate = parsePlacementDeadline(deadline);
+      let dateParam = '';
+      if (parsedDate) {
+        const pad = n => String(n).padStart(2, '0');
+        const formatGCal = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+        const endStr = formatGCal(parsedDate);
+        const startDate = new Date(parsedDate.getTime() - (60 * 60 * 1000));
+        const startStr = formatGCal(startDate);
+        dateParam = `&dates=${startStr}/${endStr}&ctz=Asia/Kolkata`;
+      }
+      
+      const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=Online${dateParam}`;
       window.open(gcalUrl, '_blank');
-      showToast('Opening Google Calendar');
+      showToast(parsedDate ? 'Opening Google Calendar with exact deadline time' : 'Opening Google Calendar');
     }
 
     function openPrepModal(driveId) {
@@ -905,6 +1031,32 @@
     function closeModal() {
       document.getElementById('details-modal').classList.add('hidden');
       activeModalDriveId = null;
+    }
+
+    function openCalendarModal() {
+      const host = window.location.host || 'localhost:8000';
+      const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+      const icsUrl = `${proto}//${host}/api/calendar.ics`;
+      const webcalUrl = `webcal://${host}/api/calendar.ics`;
+      
+      const input = document.getElementById('webcal-input');
+      if (input) input.value = icsUrl;
+      const gcalLink = document.getElementById('gcal-sub-link');
+      if (gcalLink) {
+        gcalLink.href = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`;
+      }
+      document.getElementById('calendar-modal').classList.remove('hidden');
+    }
+
+    function closeCalendarModal() {
+      document.getElementById('calendar-modal').classList.add('hidden');
+    }
+
+    function copyWebcalLink() {
+      const val = document.getElementById('webcal-input').value;
+      navigator.clipboard.writeText(val).then(() => {
+        showToast('Live calendar link copied');
+      });
     }
 
     function changeDriveStatusFromModal() {
