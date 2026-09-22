@@ -30,7 +30,9 @@ jobs:
 
       - name: Accept Android SDK Licenses
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          mkdir -p "$ANDROID_HOME/licenses" || true
+          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n" > "$ANDROID_HOME/licenses/android-sdk-license"
+          printf "84831b9409646a247e3073db76404268d421e451\n" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
 
       - name: Build APK with Gradle
         working-directory: ./android
@@ -40,7 +42,7 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.5
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Rename APK
         run: |
