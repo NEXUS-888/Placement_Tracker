@@ -112,7 +112,21 @@ def serve_dashboard():
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return JSONResponse({"message": "Placement Tracker API is running. UI not found in static/index.html."})
+    return JSONResponse({"message": "Placement Tracker API is running."})
+
+@app.get("/preview")
+def serve_preview():
+    preview_path = os.path.join(STATIC_DIR, "preview.html")
+    if os.path.exists(preview_path):
+        return FileResponse(preview_path)
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+@app.get("/mobile")
+def serve_mobile():
+    mobile_path = os.path.join(os.path.dirname(__file__), "android", "app", "src", "main", "assets", "index.html")
+    if os.path.exists(mobile_path):
+        return FileResponse(mobile_path)
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

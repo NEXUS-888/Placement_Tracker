@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placement Tracker - Live Mobile Simulator Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .phone-shadow {
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 12px #1e293b, 0 0 0 14px #334155;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- Top Toolbar -->
+  <header class="w-full max-w-4xl flex items-center justify-between py-4 mb-4 border-b border-slate-800">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+        <i class="fa-solid fa-mobile-screen text-base"></i>
+      </div>
+      <div>
+        <h1 class="font-bold text-base">Placement Tracker Mobile Preview</h1>
+        <p class="text-xs text-slate-400">Interactive on-device Android simulator</p>
+      </div>
+    </div>
+
+    <div class="flex items-center space-x-3 text-xs">
+      <a href="/" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition">
+        <i class="fa-solid fa-desktop mr-1.5"></i> Desktop Dashboard
+      </a>
+      <a href="/mobile" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg shadow transition">
+        <i class="fa-solid fa-arrow-up-right-from-square mr-1.5"></i> Open Fullscreen
+      </a>
+    </div>
+  </header>
+
+  <!-- Phone Frame Simulator -->
+  <div class="relative w-[390px] h-[810px] bg-slate-950 rounded-[48px] phone-shadow overflow-hidden flex flex-col border border-slate-700">
+    
+    <!-- Phone Top Notch / Dynamic Island -->
+    <div class="bg-slate-950 pt-3 pb-1 px-7 flex items-center justify-between text-[11px] font-semibold text-slate-300 z-30 select-none">
+      <span id="live-time">10:09</span>
+      <div class="w-20 h-4 bg-black rounded-full mx-auto border border-slate-800 flex items-center justify-end pr-2">
+        <div class="w-2 h-2 rounded-full bg-slate-900 border border-slate-700"></div>
+      </div>
+      <div class="flex items-center space-x-1.5 text-[10px]">
+        <i class="fa-solid fa-signal"></i>
+        <i class="fa-solid fa-wifi"></i>
+        <i class="fa-solid fa-battery-full"></i>
+      </div>
+    </div>
+
+    <!-- The actual Android App Screen (iFrame of mobile index.html) -->
+    <iframe src="/mobile" class="w-full flex-1 border-0 bg-slate-950"></iframe>
+
+    <!-- Phone Bottom Home Indicator Bar -->
+    <div class="bg-slate-950 py-2 flex justify-center z-30 select-none">
+      <div class="w-32 h-1 bg-slate-600 rounded-full"></div>
+    </div>
+
+  </div>
+
+  <p class="text-xs text-slate-500 mt-5 text-center">
+    💡 This is the exact APK interface running live. You can test saving target groups, viewing drives, and running simulations directly inside the phone screen!
+  </p>
+
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const mins = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('live-time').textContent = `${hours}:${mins}`;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+  </script>
+</body>
+</html>
