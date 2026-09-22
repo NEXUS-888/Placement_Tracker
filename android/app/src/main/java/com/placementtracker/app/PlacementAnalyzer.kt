@@ -15,7 +15,7 @@ import java.util.regex.Pattern
 object PlacementAnalyzer {
 
     suspend fun analyzeAndProcess(context: Context, rawText: String): JSONObject = withContext(Dispatchers.IO) {
-        val db = DatabaseHelper(context)
+        val db = DatabaseHelper.getInstance(context)
 
         // 1. Fast keyword check: is this placement related?
         val placementRegex = "(?i)\\b(placement|internship|hiring|campus drive|recruitment|stipend|ctc|lpa|cgpa|deadline|rescheduled|postponed|drive date)\\b"

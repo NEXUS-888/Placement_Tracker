@@ -53,4 +53,17 @@ class MainActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
+
+    override fun onDestroy() {
+        try {
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.clearHistory()
+            (webView.parent as? android.view.ViewGroup)?.removeView(webView)
+            webView.destroy()
+        } catch (e: Exception) {
+            // Ignore clean teardown exceptions
+        }
+        super.onDestroy()
+    }
 }

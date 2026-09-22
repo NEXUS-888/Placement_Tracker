@@ -1,162 +1,253 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Placement Tracker & Vault</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Placement Terminal • DBIT Dispatch</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    :root {
+      --bg-base: #090a0f;
+      --surface-1: #10131a;
+      --surface-2: #161b26;
+      --surface-3: #1e2433;
+      --border-subtle: #242b3b;
+      --border-strong: #333d52;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-base);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-variant-numeric: tabular-nums;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .text-balance {
+      text-wrap: balance;
+    }
+    .tactile-press {
+      transition: transform 120ms cubic-bezier(0.2, 0, 0, 1), background-color 150ms ease;
+    }
+    .tactile-press:active {
+      transform: scale(0.97);
+    }
+    .custom-scroll::-webkit-scrollbar { width: 3px; height: 3px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #262f40; border-radius: 9999px; }
+    /* Subtle dot grid for utilitarian terminal feel */
+    .terminal-grid {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 0);
+      background-size: 20px 20px;
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 select-none">
+<body class="bg-[#090a0f] text-slate-100 min-h-screen flex flex-col select-none pb-24 terminal-grid">
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl transition-all duration-300 opacity-0 pointer-events-none flex items-center space-x-2">
-    <i class="fa-solid fa-circle-check text-emerald-300"></i>
-    <span id="toast-msg">Copied to clipboard!</span>
+  <!-- Tactical Toast HUD -->
+  <div id="toast" class="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-[#161b26]/95 border border-[#333d52] text-slate-100 text-[11px] font-semibold tracking-wide px-4 py-2 rounded-full shadow-2xl backdrop-blur-md transition-all duration-200 opacity-0 pointer-events-none flex items-center space-x-2">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+    <span id="toast-msg">Copied to clipboard</span>
   </div>
 
-  <!-- Top App Bar -->
-  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40 backdrop-blur">
+  <!-- Terminal Top Bar -->
+  <header class="bg-[#0e1118]/90 border-b border-[#1e2433] px-4 py-2.5 sticky top-0 z-40 backdrop-blur-md flex items-center justify-between">
     <div class="flex items-center space-x-2.5">
-      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
-        <i class="fa-solid fa-graduation-cap text-sm"></i>
+      <div class="w-7 h-7 rounded-md bg-[#161b26] border border-[#2a3346] flex items-center justify-center text-indigo-400">
+        <i class="fa-solid fa-satellite-dish text-xs"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base leading-tight">Placement Tracker</h1>
-        <p class="text-[10px] text-emerald-400 font-medium flex items-center space-x-1">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-          <span id="header-usn-badge">Monitoring Active</span>
+        <div class="flex items-center space-x-1.5">
+          <span class="text-xs font-extrabold tracking-tight text-white uppercase">Placement Terminal</span>
+          <span class="text-[9px] bg-indigo-500/15 text-indigo-300 font-mono-code px-1.5 py-0.2 rounded border border-indigo-500/25">v1.2</span>
+        </div>
+        <p class="text-[10px] text-slate-400 font-mono-code flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+          <span id="header-status">DBIT MONITOR ACTIVE</span>
         </p>
       </div>
     </div>
+
+    <!-- Quick Profile Pill -->
     <div class="flex items-center space-x-2">
-      <button onclick="refreshAll()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs" title="Refresh">
-        <i class="fa-solid fa-rotate"></i>
+      <div id="top-usn-pill" onclick="switchTab('profile')" class="cursor-pointer bg-[#161b26] hover:bg-[#1e2433] border border-[#252c3d] px-2.5 py-1 rounded-md text-[11px] font-mono-code text-slate-300 flex items-center space-x-1.5 tactile-press">
+        <i class="fa-regular fa-user text-[10px] text-indigo-400"></i>
+        <span id="top-usn-label">1DB23CS001</span>
+      </div>
+      <button onclick="refreshAll()" class="w-7 h-7 rounded-md bg-[#161b26] border border-[#252c3d] hover:text-white text-slate-400 flex items-center justify-center text-xs tactile-press" title="Sync">
+        <i class="fa-solid fa-arrows-rotate"></i>
       </button>
     </div>
   </header>
 
-  <!-- Main View Container -->
-  <main class="p-4 space-y-4 max-w-lg mx-auto">
+  <!-- Main Viewport -->
+  <main class="flex-1 p-3.5 space-y-3.5 max-w-lg mx-auto w-full">
 
-    <!-- VIEW 1: DRIVES FEED -->
+    <!-- VIEW 1: DRIVES DISPATCH -->
     <div id="view-drives" class="space-y-3">
-      <!-- Search & Filters -->
+
+      <!-- LIVE URGENCY RADAR WIDGET -->
+      <div id="urgency-radar" class="bg-gradient-to-r from-amber-950/40 via-[#181510] to-[#12141a] border border-amber-600/30 rounded-xl p-3 flex items-center justify-between shadow-sm">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <i class="fa-regular fa-clock text-xs"></i>
+          </div>
+          <div>
+            <div class="text-[9px] uppercase tracking-wider font-extrabold text-amber-400 font-mono-code flex items-center space-x-1">
+              <span>Next Deadline Window</span>
+            </div>
+            <div class="text-xs font-bold text-slate-200" id="radar-title">Besant Technologies Campus Drive</div>
+            <div class="text-[10px] text-amber-300/80 font-mono-code mt-0.5" id="radar-time">Submit before 4:00 PM, 17th Sep</div>
+          </div>
+        </div>
+        <button onclick="quickOpenFirstForm()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] px-3 py-1.5 rounded-lg shrink-0 tactile-press shadow-sm flex items-center space-x-1">
+          <span>Apply</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+        </button>
+      </div>
+
+      <!-- Search & Segment Filters -->
       <div class="space-y-2">
         <div class="relative">
           <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-          <input type="text" id="search-input" onkeyup="filterDrives()" placeholder="Search company, role, package..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs focus:border-indigo-500 focus:outline-none text-slate-200">
+          <input type="text" id="search-input" onkeyup="filterDrives()" placeholder="Filter by company, role, package..." class="w-full bg-[#12151e] border border-[#232938] rounded-lg pl-8 pr-3 py-2 text-xs focus:border-indigo-500 focus:outline-none text-slate-200 placeholder-slate-500 font-medium">
         </div>
 
-        <!-- Filter Chips -->
-        <div class="flex items-center space-x-1.5 overflow-x-auto custom-scroll pb-1">
-          <button onclick="setFilter('all')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap" data-status="all">All</button>
-          <button onclick="setFilter('eligible')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="eligible">🟢 Eligible</button>
-          <button onclick="setFilter('Registered Confirmed')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Registered Confirmed">✅ Confirmed</button>
-          <button onclick="setFilter('Shortlisted')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Shortlisted">🎉 Shortlisted</button>
-          <button onclick="setFilter('Applied')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Applied">Applied</button>
+        <!-- Segment Chips -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto custom-scroll pb-0.5">
+          <button onclick="setFilter('all')" class="filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-indigo-600 text-white whitespace-nowrap shadow-sm" data-status="all">All Drives</button>
+          <button onclick="setFilter('eligible')" class="filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-[#12151e] border border-[#232938] text-slate-400 hover:text-white whitespace-nowrap" data-status="eligible">🟢 100% Eligible</button>
+          <button onclick="setFilter('Registered Confirmed')" class="filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-[#12151e] border border-[#232938] text-slate-400 hover:text-white whitespace-nowrap" data-status="Registered Confirmed">✅ Confirmed</button>
+          <button onclick="setFilter('Shortlisted')" class="filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-[#12151e] border border-[#232938] text-slate-400 hover:text-white whitespace-nowrap" data-status="Shortlisted">🎉 Shortlists</button>
+          <button onclick="setFilter('Applied')" class="filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-[#12151e] border border-[#232938] text-slate-400 hover:text-white whitespace-nowrap" data-status="Applied">Applied</button>
         </div>
       </div>
 
-      <!-- Drives List -->
+      <!-- Drive Cards Stream -->
       <div id="drives-container" class="space-y-3">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div id="empty-state" class="hidden text-center py-14 text-slate-500 space-y-2">
+        <i class="fa-solid fa-radar text-3xl text-slate-600"></i>
+        <p class="text-xs font-medium">No placement drives found matching this filter.</p>
+      </div>
+    </div>
+
+    <!-- VIEW 2: PLACEMENT VAULT (Tactile Clipboard Strip) -->
+    <div id="view-vault" class="hidden space-y-3">
+      
+      <!-- Student Identity Header Card -->
+      <div class="bg-[#12151e] border border-[#232938] rounded-xl p-3.5 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-extrabold text-sm font-mono-code" id="vault-avatar">
+            CS
+          </div>
+          <div>
+            <div class="flex items-center space-x-1.5">
+              <span class="text-sm font-extrabold text-white" id="vault-name">Rahul Sharma</span>
+              <span class="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono-code px-1.5 py-0.2 rounded border border-emerald-500/20 font-bold">VERIFIED</span>
+            </div>
+            <p class="text-[11px] text-slate-400 font-mono-code mt-0.5" id="vault-usn-sub">USN: 1DB23CS001 • Dept. of CSE</p>
+          </div>
+        </div>
+        <button onclick="switchTab('profile')" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold px-2 py-1 bg-[#1a1f2c] rounded border border-[#2a3346] tactile-press">
+          Edit
+        </button>
+      </div>
+
+      <!-- Instructions strip -->
+      <div class="text-[11px] text-slate-400 px-1 flex items-center justify-between">
+        <span>Tap any card to copy instant values for Google Forms:</span>
+        <span class="text-[10px] text-emerald-400 font-mono-code">1-TAP READY</span>
+      </div>
+
+      <!-- 1-Tap Copy Cards Grid -->
+      <div id="vault-items" class="grid grid-cols-2 gap-2">
         <!-- Rendered via JS -->
       </div>
-
-      <div id="empty-state" class="hidden text-center py-12 text-slate-500 space-y-2">
-        <i class="fa-solid fa-inbox text-3xl"></i>
-        <p class="text-xs">No placement announcements match this filter.</p>
-      </div>
     </div>
 
-    <!-- VIEW 2: PLACEMENT VAULT (1-Tap Copy Assistant) -->
-    <div id="view-vault" class="hidden space-y-3">
-      <div class="bg-indigo-950/40 border border-indigo-800/40 rounded-xl p-3.5 flex items-center justify-between">
-        <div>
-          <h2 class="font-bold text-xs text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
-            <i class="fa-solid fa-shield-halved"></i>
-            <span>Placement Profile Vault</span>
-          </h2>
-          <p class="text-[11px] text-slate-400 mt-0.5">1-Tap to copy verified data directly into Google Forms.</p>
-        </div>
-        <button onclick="switchTab('profile')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium">Edit</button>
-      </div>
-
-      <div id="vault-items" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <!-- Injected via JS -->
-      </div>
-    </div>
-
-    <!-- VIEW 3: VERIFY SHEET (Excel/PDF USN Scanner) -->
-    <div id="view-verify" class="hidden space-y-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-        <div>
-          <h2 class="font-bold text-sm text-white flex items-center space-x-2">
-            <i class="fa-solid fa-file-excel text-emerald-400"></i>
-            <span>Registered Students & Shortlist Scanner</span>
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">
-            Upload any Excel (.xlsx, .csv) or PDF sent by the coordinator to verify your registration confirmation or interview shortlist.
-          </p>
+    <!-- VIEW 3: SCAN SHEET & RECEIPT INSPECTOR -->
+    <div id="view-verify" class="hidden space-y-3.5">
+      <div class="bg-[#12151e] border border-[#232938] rounded-xl p-4 space-y-3">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-200 flex items-center space-x-1.5 font-mono-code">
+              <i class="fa-solid fa-file-csv text-emerald-400"></i>
+              <span>Official List Inspector</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">
+              Verify your presence in official registration lists or round 2 shortlists.
+            </p>
+          </div>
+          <span class="text-[9px] text-slate-400 font-mono-code bg-[#1a1f2c] px-2 py-1 rounded border border-[#2a3346]">.XLSX • .CSV • .PDF</span>
         </div>
 
-        <div class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-5 text-center space-y-2 cursor-pointer bg-slate-950/50" onclick="document.getElementById('verify-file-input').click()">
-          <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-400"></i>
-          <p class="text-xs font-semibold text-slate-300">Tap to upload Registered Students list or Shortlist</p>
-          <p class="text-[10px] text-slate-500">Supports .xlsx, .csv, and .pdf</p>
+        <div class="border-2 border-dashed border-[#293245] hover:border-indigo-500/60 rounded-xl p-5 text-center space-y-2 cursor-pointer bg-[#0c0e15] tactile-press" onclick="document.getElementById('verify-file-input').click()">
+          <div class="w-10 h-10 rounded-full bg-[#181d2a] border border-[#262f40] flex items-center justify-center mx-auto text-indigo-400">
+            <i class="fa-solid fa-file-arrow-up text-sm"></i>
+          </div>
+          <p class="text-xs font-bold text-slate-200">Tap to upload Coordinator List</p>
+          <p class="text-[10px] text-slate-500">Searches rows for your active USN</p>
           <input type="file" id="verify-file-input" class="hidden" accept=".xlsx,.csv,.pdf" onchange="handleFileUpload(this)">
         </div>
 
-        <div id="scan-loading" class="hidden p-4 text-center space-y-2">
-          <div class="inline-block animate-spin text-indigo-400 text-xl"><i class="fa-solid fa-spinner"></i></div>
-          <p class="text-xs text-slate-300 font-medium">Scanning sheet rows for your USN & Name...</p>
+        <div id="scan-loading" class="hidden py-4 text-center space-y-2">
+          <div class="inline-block animate-spin text-indigo-400 text-lg"><i class="fa-solid fa-circle-notch"></i></div>
+          <p class="text-xs text-slate-300 font-mono-code">Executing row-by-row USN audit...</p>
         </div>
 
-        <!-- Scan Result Card -->
-        <div id="scan-result-card" class="hidden rounded-xl p-3.5 space-y-2 border"></div>
+        <!-- Result Certificate Card -->
+        <div id="scan-result-card" class="hidden rounded-xl p-3.5 space-y-2.5 border"></div>
       </div>
 
-      <!-- Scanned Logs History -->
+      <!-- Scanned History -->
       <div class="space-y-2">
-        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Verification History</h3>
+        <h3 class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 font-mono-code px-1">Audited Lists Archive</h3>
         <div id="verification-history" class="space-y-2">
           <!-- Injected via JS -->
         </div>
       </div>
     </div>
 
-    <!-- VIEW 4: STUDENT PROFILE -->
-    <div id="view-profile" class="hidden space-y-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-        <div class="border-b border-slate-800 pb-2 flex justify-between items-center">
-          <h2 class="font-bold text-sm text-white flex items-center space-x-2">
-            <i class="fa-solid fa-user-graduate text-indigo-400"></i>
-            <span>Student Placement Profile</span>
-          </h2>
-          <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Auto-matches eligibility</span>
+    <!-- VIEW 4: STUDENT PROFILE TERMINAL -->
+    <div id="view-profile" class="hidden space-y-3.5">
+      <div class="bg-[#12151e] border border-[#232938] rounded-xl p-4 space-y-3.5">
+        <div class="border-b border-[#202636] pb-2.5 flex justify-between items-center">
+          <div>
+            <h2 class="text-xs font-extrabold uppercase tracking-wider text-white font-mono-code">Academic Credentials</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">Used for automated eligibility evaluation</p>
+          </div>
+          <span class="text-[10px] font-mono-code text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">CONFIG</span>
         </div>
 
-        <div class="space-y-2.5 text-xs">
-          <div class="grid grid-cols-2 gap-2">
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">College USN *</label>
-              <input type="text" id="prof-usn" placeholder="e.g. 1DB23CS001" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 uppercase font-mono focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">University USN</label>
+              <input type="text" id="prof-usn" placeholder="1DB23CS001" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 uppercase font-mono-code focus:border-indigo-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Full Name *</label>
-              <input type="text" id="prof-name" placeholder="Candidate Name" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Full Name</label>
+              <input type="text" id="prof-name" placeholder="Candidate Name" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
             </div>
           </div>
 
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Branch</label>
-              <select id="prof-branch" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Branch</label>
+              <select id="prof-branch" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none font-semibold">
                 <option value="CSE">CSE</option>
                 <option value="ISE">ISE</option>
                 <option value="AIML">AIML</option>
@@ -168,187 +259,188 @@
               </select>
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">CGPA</label>
-              <input type="number" step="0.01" id="prof-cgpa" placeholder="7.80" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">CGPA</label>
+              <input type="number" step="0.01" id="prof-cgpa" placeholder="7.80" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 font-mono-code focus:border-indigo-500 focus:outline-none font-bold text-emerald-400">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Batch</label>
-              <input type="number" id="prof-batch" value="2027" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Batch</label>
+              <input type="number" id="prof-batch" value="2027" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 font-mono-code focus:border-indigo-500 focus:outline-none">
             </div>
           </div>
 
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">10th Board %</label>
-              <input type="number" step="0.1" id="prof-tenth" placeholder="88.5" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">10th %</label>
+              <input type="number" step="0.1" id="prof-tenth" placeholder="88.5" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 font-mono-code focus:border-indigo-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">12th / PUC %</label>
-              <input type="number" step="0.1" id="prof-twelfth" placeholder="84.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">12th / PUC %</label>
+              <input type="number" step="0.1" id="prof-twelfth" placeholder="84.0" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 font-mono-code focus:border-indigo-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Active Backlogs</label>
-              <input type="number" id="prof-backlogs" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Backlogs</label>
+              <input type="number" id="prof-backlogs" value="0" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 font-mono-code focus:border-indigo-500 focus:outline-none">
             </div>
           </div>
 
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">College Email</label>
-            <input type="email" id="prof-email" placeholder="usn@college.edu.in" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">College Email</label>
+            <input type="email" id="prof-email" placeholder="usn@dbit.edu.in" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
           </div>
 
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Phone Number</label>
-            <input type="tel" id="prof-phone" placeholder="9876543210" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Phone Number</label>
+            <input type="tel" id="prof-phone" placeholder="9876543210" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none font-mono-code">
           </div>
 
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Resume Google Drive Link</label>
-            <input type="url" id="prof-resume" placeholder="https://drive.google.com/file/d/.../view" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Resume Google Drive Link</label>
+            <input type="url" id="prof-resume" placeholder="https://drive.google.com/file/d/.../view" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
           </div>
 
-          <div class="grid grid-cols-2 gap-2">
+          <div class="grid grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">LinkedIn Profile</label>
-              <input type="url" id="prof-linkedin" placeholder="https://linkedin.com/in/..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">LinkedIn URL</label>
+              <input type="url" id="prof-linkedin" placeholder="linkedin.com/in/..." class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
             </div>
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">GitHub Profile</label>
-              <input type="url" id="prof-github" placeholder="https://github.com/..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+              <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">GitHub URL</label>
+              <input type="url" id="prof-github" placeholder="github.com/..." class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2 text-slate-100 focus:border-indigo-500 focus:outline-none">
             </div>
           </div>
         </div>
 
-        <button onclick="saveProfile()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30">
-          Save Profile & Recalculate Eligibility
+        <button onclick="saveProfile()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg shadow-sm tactile-press flex items-center justify-center space-x-1.5">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Save Profile & Recalculate Cutoffs</span>
         </button>
       </div>
     </div>
 
     <!-- VIEW 5: SETTINGS & SIMULATOR -->
-    <div id="view-settings" class="hidden space-y-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
-        <h2 class="font-bold text-sm text-white flex items-center space-x-2">
+    <div id="view-settings" class="hidden space-y-3.5">
+      <div class="bg-[#12151e] border border-[#232938] rounded-xl p-4 space-y-3">
+        <h2 class="text-xs font-extrabold uppercase tracking-wider text-slate-200 font-mono-code flex items-center space-x-2">
           <i class="fa-solid fa-sliders text-indigo-400"></i>
-          <span>App & Listener Settings</span>
+          <span>WhatsApp Monitor Settings</span>
         </h2>
 
         <div>
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target WhatsApp Group</label>
+          <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Placement WhatsApp Group</label>
           <div class="flex space-x-2">
-            <input type="text" id="target-group-input" placeholder="e.g. 2027 Placements" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
-            <button onclick="saveTargetGroup()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg">Save</button>
+            <input type="text" id="target-group-input" placeholder="e.g. 2027 Placement Announcements" class="flex-1 bg-[#0c0e15] border border-[#252c3d] rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <button onclick="saveTargetGroup()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg tactile-press">Save</button>
           </div>
         </div>
 
         <div>
-          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gemini API Key</label>
+          <label class="block text-[10px] font-extrabold text-slate-400 uppercase font-mono-code mb-1">Gemini API Key</label>
           <div class="flex space-x-2">
-            <input type="password" id="api-key-input" placeholder="Paste Gemini API key" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
-            <button onclick="saveApiKey()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg">Save</button>
+            <input type="password" id="api-key-input" placeholder="AQ.Ab8RN..." class="flex-1 bg-[#0c0e15] border border-[#252c3d] rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <button onclick="saveApiKey()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg tactile-press">Save</button>
           </div>
         </div>
       </div>
 
       <!-- Quick Message Simulator -->
-      <div class="bg-slate-900 border border-indigo-500/30 rounded-xl p-4 space-y-2">
-        <h3 class="font-bold text-xs text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
+      <div class="bg-[#12151e] border border-indigo-500/20 rounded-xl p-4 space-y-2.5">
+        <h3 class="text-xs font-extrabold uppercase tracking-wider text-indigo-300 font-mono-code flex items-center space-x-1.5">
           <i class="fa-solid fa-flask"></i>
-          <span>Simulate WhatsApp Placement Message</span>
+          <span>Message Processing Engine</span>
         </h3>
-        <textarea id="sim-text" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs focus:border-indigo-500 focus:outline-none" placeholder="Paste announcement message..."></textarea>
+        <textarea id="sim-text" rows="3" class="w-full bg-[#0c0e15] border border-[#252c3d] rounded-lg p-2.5 text-xs focus:border-indigo-500 focus:outline-none text-slate-200 placeholder-slate-500 font-mono-code" placeholder="Simulate incoming WhatsApp post..."></textarea>
         <div class="flex justify-between items-center">
-          <button onclick="loadSample('new')" class="text-[11px] text-indigo-400 font-medium">Sample New</button>
-          <button onclick="loadSample('update')" class="text-[11px] text-amber-400 font-medium">Sample Update</button>
-          <button onclick="submitSimulation()" class="px-3 py-1.5 bg-indigo-600 text-white font-semibold text-xs rounded-lg">Process</button>
+          <button onclick="loadSample('new')" class="text-[11px] text-indigo-400 font-medium">Load Besant Docx</button>
+          <button onclick="loadSample('update')" class="text-[11px] text-amber-400 font-medium">Load Schedule Change</button>
+          <button onclick="submitSimulation()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg tactile-press">Run Test</button>
         </div>
-        <div id="sim-result" class="hidden p-2 rounded-lg text-[10px] font-mono whitespace-pre-wrap bg-slate-950 border border-slate-800"></div>
+        <div id="sim-result" class="hidden p-2.5 rounded-lg text-[10px] font-mono-code whitespace-pre-wrap bg-[#0c0e15] border border-[#252c3d]"></div>
       </div>
     </div>
 
   </main>
 
   <!-- OA Prep Sheet Modal -->
-  <div id="prep-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
-      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+  <div id="prep-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-[#10131a] border border-[#232938] rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b border-[#1f2533] pb-3">
         <div>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">OA Intel & Prep Sheet</span>
-          <h2 id="prep-company" class="text-xl font-black text-white mt-1">Company Intel</h2>
-          <p id="prep-role" class="text-slate-400 text-xs">Assessment & Interview Breakdown</p>
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold font-mono-code bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase tracking-wider">Assessment Blueprint</span>
+          <h2 id="prep-company" class="text-lg font-extrabold text-white mt-1">Company Intel</h2>
+          <p id="prep-role" class="text-slate-400 text-xs">Curated Round 1 & Technical OA Breakdown</p>
         </div>
-        <button onclick="closePrepModal()" class="text-slate-400 hover:text-white p-1">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closePrepModal()" class="w-8 h-8 rounded-lg bg-[#181d28] border border-[#283244] text-slate-400 hover:text-white flex items-center justify-center tactile-press">
+          <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
 
       <div class="space-y-3 text-xs">
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">🎯 Exam Pattern & Timing</div>
-          <div id="prep-pattern" class="text-slate-200">Loading pattern...</div>
-          <div id="prep-marking" class="text-[11px] text-slate-400 mt-1"></div>
+        <div class="bg-[#0b0d13] p-3.5 rounded-xl border border-[#202737]">
+          <div class="text-[10px] font-extrabold text-indigo-400 uppercase font-mono-code mb-1 tracking-wider">🎯 Online Assessment Format</div>
+          <div id="prep-pattern" class="text-slate-200 leading-relaxed font-medium">Exam format details...</div>
+          <div id="prep-marking" class="text-[11px] text-slate-400 font-mono-code mt-1.5"></div>
         </div>
 
-        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
-          <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5">🔑 Top 3 Topics to Revise</div>
-          <ul id="prep-topics" class="space-y-1 text-slate-200 list-disc list-inside"></ul>
+        <div class="bg-[#0b0d13] p-3.5 rounded-xl border border-[#202737]">
+          <div class="text-[10px] font-extrabold text-emerald-400 uppercase font-mono-code mb-1.5 tracking-wider">🔑 High-Yield Revision Areas</div>
+          <ul id="prep-topics" class="space-y-1.5 text-slate-200 list-disc list-inside font-medium"></ul>
         </div>
 
-        <div class="bg-slate-950 p-3 rounded-xl border border-amber-800/40">
-          <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">⚠️ Crucial Watchouts & Model</div>
-          <ul id="prep-watchouts" class="space-y-1 text-amber-200/90 list-disc list-inside text-[11px]"></ul>
+        <div class="bg-[#16120b] p-3.5 rounded-xl border border-amber-800/40">
+          <div class="text-[10px] font-extrabold text-amber-400 uppercase font-mono-code mb-1 tracking-wider">⚠️ Crucial Terms & Model</div>
+          <ul id="prep-watchouts" class="space-y-1.5 text-amber-200/90 list-disc list-inside text-[11px]"></ul>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Drive Details & Timeline Modal -->
-  <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
-      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+  <!-- Drive Details Modal -->
+  <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-[#10131a] border border-[#232938] rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b border-[#1f2533] pb-3">
         <div>
-          <span id="modal-job-type" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase">Full-time</span>
-          <h2 id="modal-company" class="text-xl font-black text-white mt-1">Company</h2>
+          <span id="modal-job-type" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold font-mono-code bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">Full-time</span>
+          <h2 id="modal-company" class="text-lg font-extrabold text-white mt-1">Company</h2>
           <p id="modal-role" class="text-slate-400 text-xs">Role</p>
         </div>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
-          <i class="fa-solid fa-xmark text-lg"></i>
+        <button onclick="closeModal()" class="w-8 h-8 rounded-lg bg-[#181d28] border border-[#283244] text-slate-400 hover:text-white flex items-center justify-center tactile-press">
+          <i class="fa-solid fa-xmark text-sm"></i>
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
+      <div class="grid grid-cols-2 gap-2 text-xs bg-[#0b0d13] p-3 rounded-xl border border-[#202737]">
         <div>
-          <div class="text-[10px] text-slate-500 uppercase font-bold">Package / CTC</div>
-          <div id="modal-ctc" class="font-semibold text-emerald-400 mt-0.5">Not disclosed</div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold font-mono-code">Package / Terms</div>
+          <div id="modal-ctc" class="font-bold text-emerald-400 mt-0.5">Not disclosed</div>
         </div>
         <div>
-          <div class="text-[10px] text-slate-500 uppercase font-bold">Deadline</div>
-          <div id="modal-deadline" class="font-semibold text-amber-400 mt-0.5">TBD</div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold font-mono-code">Form Deadline</div>
+          <div id="modal-deadline" class="font-bold text-amber-400 mt-0.5 font-mono-code">TBD</div>
         </div>
         <div>
-          <div class="text-[10px] text-slate-500 uppercase font-bold">Drive Date</div>
-          <div id="modal-drive-date" class="font-medium text-slate-300 mt-0.5">TBD</div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold font-mono-code">Drive Date</div>
+          <div id="modal-drive-date" class="font-semibold text-slate-300 mt-0.5">TBD</div>
         </div>
         <div>
-          <div class="text-[10px] text-slate-500 uppercase font-bold">Eligibility</div>
-          <div id="modal-eligibility" class="font-medium text-slate-300 mt-0.5">Refer details</div>
+          <div class="text-[10px] text-slate-500 uppercase font-extrabold font-mono-code">Eligibility</div>
+          <div id="modal-eligibility" class="font-semibold text-slate-300 mt-0.5">Refer details</div>
         </div>
       </div>
 
-      <!-- Eligibility Breakdown Card -->
+      <!-- Eligibility Breakdown Box -->
       <div id="modal-eligibility-box" class="p-3 rounded-xl border text-xs space-y-1"></div>
 
-      <!-- Update Timeline -->
+      <!-- Timeline & Coordinator Modifications -->
       <div>
-        <h3 class="text-xs font-bold text-slate-300 flex items-center space-x-1.5 mb-2">
+        <h3 class="text-xs font-extrabold text-slate-300 flex items-center space-x-1.5 mb-2 font-mono-code uppercase tracking-wider">
           <i class="fa-solid fa-timeline text-amber-400"></i>
-          <span>Coordinator Changes & Timeline</span>
+          <span>Official Amendments Log</span>
         </h3>
         <div id="modal-updates-list" class="space-y-2 max-h-32 overflow-y-auto custom-scroll"></div>
       </div>
 
-      <div class="flex justify-between items-center pt-2 border-t border-slate-800">
-        <select id="modal-status-select" onchange="changeDriveStatusFromModal()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200">
+      <div class="flex justify-between items-center pt-2 border-t border-[#1f2533]">
+        <select id="modal-status-select" onchange="changeDriveStatusFromModal()" class="bg-[#0b0d13] border border-[#252c3d] text-xs rounded-lg px-2.5 py-1.5 text-slate-200 font-mono-code focus:outline-none">
           <option value="Announced">Announced</option>
           <option value="Applied">Applied</option>
           <option value="Registered Confirmed">Registered Confirmed ✅</option>
@@ -359,35 +451,35 @@
           <option value="Rejected">Rejected</option>
           <option value="Closed">Closed</option>
         </select>
-        <a id="modal-apply-btn" href="#" target="_blank" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 shadow">
-          <span>Open Form</span>
+        <a id="modal-apply-btn" href="#" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-xs rounded-lg flex items-center space-x-1.5 shadow tactile-press">
+          <span>Open Google Form</span>
           <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
         </a>
       </div>
     </div>
   </div>
 
-  <!-- Bottom Navigation Bar -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 px-3 py-2 flex justify-around items-center z-40 backdrop-blur">
-    <button onclick="switchTab('drives')" class="nav-btn flex flex-col items-center text-indigo-400 space-y-0.5" data-tab="drives">
-      <i class="fa-solid fa-briefcase text-base"></i>
-      <span class="text-[10px] font-bold">Drives</span>
+  <!-- Bottom Navigation Dock -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-[#0e1118]/95 border-t border-[#1c222e] px-4 py-2 flex justify-around items-center z-40 backdrop-blur-md">
+    <button onclick="switchTab('drives')" class="nav-btn flex flex-col items-center text-indigo-400 space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="drives">
+      <i class="fa-solid fa-briefcase text-sm"></i>
+      <span class="text-[10px] font-bold font-mono-code">Drives</span>
     </button>
-    <button onclick="switchTab('vault')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="vault">
-      <i class="fa-solid fa-shield-halved text-base"></i>
-      <span class="text-[10px] font-bold">Vault</span>
+    <button onclick="switchTab('vault')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="vault">
+      <i class="fa-regular fa-clipboard text-sm"></i>
+      <span class="text-[10px] font-bold font-mono-code">Vault</span>
     </button>
-    <button onclick="switchTab('verify')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="verify">
-      <i class="fa-solid fa-file-excel text-base"></i>
-      <span class="text-[10px] font-bold">Scan Sheet</span>
+    <button onclick="switchTab('verify')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="verify">
+      <i class="fa-solid fa-file-excel text-sm"></i>
+      <span class="text-[10px] font-bold font-mono-code">Scanner</span>
     </button>
-    <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="profile">
-      <i class="fa-solid fa-user-graduate text-base"></i>
-      <span class="text-[10px] font-bold">Profile</span>
+    <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="profile">
+      <i class="fa-regular fa-id-card text-sm"></i>
+      <span class="text-[10px] font-bold font-mono-code">Profile</span>
     </button>
-    <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="settings">
-      <i class="fa-solid fa-sliders text-base"></i>
-      <span class="text-[10px] font-bold">Settings</span>
+    <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5 py-1 px-3 rounded-lg tactile-press" data-tab="settings">
+      <i class="fa-solid fa-sliders text-sm"></i>
+      <span class="text-[10px] font-bold font-mono-code">Config</span>
     </button>
   </nav>
 
@@ -399,37 +491,44 @@
     let studentProfile = {};
     let cachedDrives = [];
 
-    // Toast helper
+    // Tactical Toast HUD
     function showToast(msg) {
       const toast = document.getElementById('toast');
       document.getElementById('toast-msg').textContent = msg;
       toast.classList.remove('opacity-0', 'pointer-events-none');
       setTimeout(() => {
         toast.classList.add('opacity-0', 'pointer-events-none');
-      }, 2000);
+      }, 1800);
     }
 
-    // Copy to clipboard helper
-    function copyText(val, label) {
+    // High-response tactile copy
+    function copyText(val, label, el) {
       if (!val) {
         showToast(`No ${label} configured in Profile!`);
         return;
       }
       navigator.clipboard.writeText(val).then(() => {
-        showToast(`Copied ${label}!`);
+        showToast(`Copied ${label}`);
+        if (el) {
+          const icon = el.querySelector('.copy-icon');
+          if (icon) {
+            icon.className = "copy-icon fa-solid fa-check text-emerald-400";
+            setTimeout(() => {
+              icon.className = "copy-icon fa-regular fa-clone text-slate-400";
+            }, 1200);
+          }
+        }
       }).catch(() => {
-        // Fallback
-        const el = document.createElement('textarea');
-        el.value = val;
-        document.body.appendChild(el);
-        el.select();
+        const ta = document.createElement('textarea');
+        ta.value = val;
+        document.body.appendChild(ta);
+        ta.select();
         document.execCommand('copy');
-        document.body.removeChild(el);
-        showToast(`Copied ${label}!`);
+        document.body.removeChild(ta);
+        showToast(`Copied ${label}`);
       });
     }
 
-    // Switch Bottom Tabs
     function switchTab(tab) {
       currentTab = tab;
       ['drives', 'vault', 'verify', 'profile', 'settings'].forEach(t => {
@@ -439,9 +538,9 @@
 
       document.querySelectorAll('.nav-btn').forEach(btn => {
         if (btn.dataset.tab === tab) {
-          btn.className = "nav-btn flex flex-col items-center text-indigo-400 space-y-0.5";
+          btn.className = "nav-btn flex flex-col items-center text-indigo-400 space-y-0.5 py-1 px-3 rounded-lg tactile-press";
         } else {
-          btn.className = "nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5";
+          btn.className = "nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5 py-1 px-3 rounded-lg tactile-press";
         }
       });
 
@@ -461,21 +560,29 @@
           const p = JSON.parse(raw);
           if (p && p.usn) {
             studentProfile = p;
-            document.getElementById('header-usn-badge').textContent = `USN: ${studentProfile.usn}`;
-            loadProfileForm();
-            renderVault();
+            syncProfileUI();
             return;
           }
         } catch (e) {}
       }
       fetch('/api/profile').then(r => r.json()).then(p => {
         studentProfile = p || {};
-        if (studentProfile.usn) {
-          document.getElementById('header-usn-badge').textContent = `USN: ${studentProfile.usn}`;
-        }
-        loadProfileForm();
-        renderVault();
+        syncProfileUI();
       }).catch(() => {});
+    }
+
+    function syncProfileUI() {
+      if (studentProfile.usn) {
+        document.getElementById('top-usn-label').textContent = studentProfile.usn;
+        document.getElementById('vault-usn-sub').textContent = `USN: ${studentProfile.usn} • Dept. of ${studentProfile.branch || 'CSE'}`;
+      }
+      if (studentProfile.full_name) {
+        document.getElementById('vault-name').textContent = studentProfile.full_name;
+        const initials = studentProfile.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        document.getElementById('vault-avatar').textContent = initials || 'ST';
+      }
+      loadProfileForm();
+      renderVault();
     }
 
     function loadProfileForm() {
@@ -516,7 +623,8 @@
         try {
           window.AndroidBridge.saveProfile(JSON.stringify(payload));
           studentProfile = payload;
-          showToast('Profile saved & eligibility refreshed!');
+          syncProfileUI();
+          showToast('Profile saved');
           refreshAll();
           switchTab('drives');
           return;
@@ -529,58 +637,54 @@
         body: JSON.stringify(payload)
       }).then(r => r.json()).then(p => {
         studentProfile = p;
-        showToast('Profile saved & eligibility refreshed!');
+        syncProfileUI();
+        showToast('Profile saved');
         refreshAll();
         switchTab('drives');
       });
     }
 
-    // Render 1-Tap Copy Vault
+    // Render Vault with Real Tactile Strip
     function renderVault() {
       const container = document.getElementById('vault-items');
       container.innerHTML = '';
 
       const items = [
-        { label: 'College USN', val: studentProfile.usn, icon: 'fa-id-card' },
-        { label: 'Full Name', val: studentProfile.full_name, icon: 'fa-user' },
-        { label: 'College Email', val: studentProfile.email, icon: 'fa-envelope' },
-        { label: 'Phone', val: studentProfile.phone, icon: 'fa-phone' },
-        { label: 'CGPA', val: studentProfile.cgpa ? `${studentProfile.cgpa} CGPA` : '', raw: studentProfile.cgpa, icon: 'fa-chart-line' },
-        { label: '10th Board %', val: studentProfile.tenth_percentage ? `${studentProfile.tenth_percentage}%` : '', raw: studentProfile.tenth_percentage, icon: 'fa-school' },
-        { label: '12th / PUC %', val: studentProfile.twelfth_percentage ? `${studentProfile.twelfth_percentage}%` : '', raw: studentProfile.twelfth_percentage, icon: 'fa-building-columns' },
-        { label: 'Branch', val: studentProfile.branch, icon: 'fa-code-branch' },
-        { label: 'Active Backlogs', val: String(studentProfile.active_backlogs ?? 0), icon: 'fa-triangle-exclamation' },
-        { label: 'Resume Drive Link', val: studentProfile.resume_link, icon: 'fa-file-pdf' },
-        { label: 'LinkedIn URL', val: studentProfile.linkedin_url, icon: 'fa-linkedin', brand: true },
-        { label: 'GitHub URL', val: studentProfile.github_url, icon: 'fa-github', brand: true }
+        { label: 'College USN', val: studentProfile.usn, mono: true },
+        { label: 'Full Name', val: studentProfile.full_name },
+        { label: 'College Email', val: studentProfile.email, full: true },
+        { label: 'Current CGPA', val: studentProfile.cgpa ? `${studentProfile.cgpa} CGPA` : '', raw: studentProfile.cgpa, mono: true, color: 'text-emerald-400' },
+        { label: 'Active Backlogs', val: String(studentProfile.active_backlogs ?? 0), mono: true },
+        { label: '10th Board %', val: studentProfile.tenth_percentage ? `${studentProfile.tenth_percentage}%` : '', raw: studentProfile.tenth_percentage, mono: true },
+        { label: '12th / PUC %', val: studentProfile.twelfth_percentage ? `${studentProfile.twelfth_percentage}%` : '', raw: studentProfile.twelfth_percentage, mono: true },
+        { label: 'Phone', val: studentProfile.phone, mono: true },
+        { label: 'Resume Drive Link', val: studentProfile.resume_link, full: true },
+        { label: 'LinkedIn Profile', val: studentProfile.linkedin_url, full: true }
       ];
 
       items.forEach(item => {
         const card = document.createElement('div');
-        card.className = "bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition shadow-sm";
-        card.onclick = () => copyText(item.raw || item.val, item.label);
+        const colSpan = item.full ? 'col-span-2' : 'col-span-1';
+        card.className = `${colSpan} bg-[#12151e] border border-[#232938] hover:border-[#343e54] rounded-xl p-3 cursor-pointer tactile-press flex items-center justify-between shadow-sm`;
+        card.onclick = () => copyText(item.raw || item.val, item.label, card);
 
-        const iconClass = item.brand ? `fa-brands ${item.icon}` : `fa-solid ${item.icon}`;
+        const valColor = item.color || 'text-slate-100';
+        const monoClass = item.mono ? 'font-mono-code font-bold' : 'font-medium';
 
         card.innerHTML = `
-          <div class="flex items-center space-x-2.5 overflow-hidden pr-2">
-            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 text-xs shrink-0">
-              <i class="${iconClass}"></i>
-            </div>
-            <div class="overflow-hidden">
-              <div class="text-[10px] text-slate-500 uppercase font-bold">${escapeHtml(item.label)}</div>
-              <div class="text-xs font-semibold text-white truncate">${escapeHtml(item.val || 'Not set')}</div>
-            </div>
+          <div class="overflow-hidden pr-2">
+            <div class="text-[9px] uppercase font-mono-code font-extrabold text-slate-500 tracking-wider">${escapeHtml(item.label)}</div>
+            <div class="text-xs ${valColor} ${monoClass} truncate mt-0.5">${escapeHtml(item.val || 'Not set')}</div>
           </div>
-          <div class="p-1.5 rounded-md bg-indigo-600/10 text-indigo-400 text-xs shrink-0">
-            <i class="fa-regular fa-clone"></i>
+          <div class="w-6 h-6 rounded bg-[#181d2a] border border-[#262f40] flex items-center justify-center text-slate-400 shrink-0">
+            <i class="copy-icon fa-regular fa-clone text-[10px]"></i>
           </div>
         `;
         container.appendChild(card);
       });
     }
 
-    // Filter and Render Drives
+    // Filter and Render Drives Feed
     function filterDrives() {
       const search = document.getElementById('search-input').value.trim();
       let url = `/api/drives`;
@@ -593,12 +697,28 @@
 
       fetch(url).then(r => r.json()).then(drives => {
         cachedDrives = drives;
+        
+        // Update live radar with first upcoming drive
+        if (drives.length > 0) {
+          const first = drives[0];
+          document.getElementById('radar-title').textContent = `${first.company_name} Campus Drive`;
+          document.getElementById('radar-time').textContent = `Deadline: ${first.deadline || 'Closing Soon'}`;
+        }
+
         if (currentFilter === 'eligible') {
           renderDrives(drives.filter(d => d.eligibility && d.eligibility.is_eligible));
         } else {
           renderDrives(drives);
         }
       });
+    }
+
+    function quickOpenFirstForm() {
+      if (cachedDrives.length > 0 && cachedDrives[0].apply_link) {
+        window.open(cachedDrives[0].apply_link, '_blank');
+      } else {
+        showToast('No form URL registered');
+      }
     }
 
     function renderDrives(drives) {
@@ -615,17 +735,19 @@
       drives.forEach(d => {
         const isEligible = d.eligibility ? d.eligibility.is_eligible : true;
         const eligBadge = isEligible 
-          ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>Eligible</span></span>`
-          : `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1"><i class="fa-solid fa-xmark"></i><span>Ineligible</span></span>`;
+          ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 text-[9px] font-mono-code font-bold px-2 py-0.5 rounded flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>100% ELIGIBLE</span></span>`
+          : `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/25 text-[9px] font-mono-code font-bold px-2 py-0.5 rounded flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span><span>INELIGIBLE</span></span>`;
 
         const appStatus = d.app_status || d.status || 'Announced';
-        let statusBadgeClass = 'bg-slate-800 text-slate-300';
-        if (appStatus.includes('Confirmed')) statusBadgeClass = 'bg-emerald-600 text-white font-bold';
-        else if (appStatus.includes('Shortlisted')) statusBadgeClass = 'bg-purple-600 text-white font-bold';
-        else if (appStatus === 'Applied') statusBadgeClass = 'bg-blue-600 text-white';
+        let statusBadge = `<span class="text-[9px] font-mono-code font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-[#181d2a] border border-[#2a3449] text-slate-300">${escapeHtml(appStatus)}</span>`;
+        if (appStatus.includes('Confirmed')) {
+          statusBadge = `<span class="text-[9px] font-mono-code font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">CONFIRMED IN LIST ✅</span>`;
+        } else if (appStatus.includes('Shortlisted')) {
+          statusBadge = `<span class="text-[9px] font-mono-code font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-500/15 border border-purple-500/30 text-purple-300">SHORTLISTED 🎉</span>`;
+        }
 
         const card = document.createElement('div');
-        card.className = "bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-2.5 active:border-indigo-500/50 transition";
+        card.className = "bg-[#10131a] border border-[#202737] hover:border-[#2f394f] rounded-xl p-3.5 space-y-3 transition shadow-sm";
         card.onclick = (e) => {
           if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A' && e.target.tagName !== 'I') {
             openModal(d.id);
@@ -633,40 +755,46 @@
         };
 
         card.innerHTML = `
+          <!-- Header Row -->
           <div class="flex items-start justify-between">
-            <div>
-              <div class="flex items-center space-x-2">
-                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${statusBadgeClass}">
-                  ${escapeHtml(appStatus)}
-                </span>
+            <div class="space-y-1">
+              <div class="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                ${statusBadge}
                 ${eligBadge}
               </div>
-              <h3 class="text-base font-black text-white mt-1">${escapeHtml(d.company_name)}</h3>
-              <p class="text-xs text-slate-400">${escapeHtml(d.role)} • <span class="text-indigo-400 font-medium">${escapeHtml(d.job_type)}</span></p>
+              <h3 class="text-base font-extrabold text-white text-balance tracking-tight pt-0.5">${escapeHtml(d.company_name)}</h3>
+              <p class="text-xs text-slate-400 font-medium">${escapeHtml(d.role)} • <span class="text-indigo-400 font-mono-code">${escapeHtml(d.job_type)}</span></p>
             </div>
-            <button onclick="openModal(${d.id})" class="text-slate-500 hover:text-white p-1">
-              <i class="fa-solid fa-chevron-right text-xs"></i>
+            <button onclick="openModal(${d.id})" class="w-7 h-7 rounded bg-[#161b26] border border-[#242b3b] text-slate-400 hover:text-white flex items-center justify-center text-xs shrink-0 tactile-press">
+              <i class="fa-solid fa-chevron-right text-[10px]"></i>
             </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-slate-800/80">
-            <div><span class="text-slate-500">Package:</span> <span class="text-emerald-400 font-semibold">${escapeHtml(d.ctc_or_stipend || 'Not disclosed')}</span></div>
-            <div><span class="text-slate-500">Deadline:</span> <span class="text-amber-400 font-semibold">${escapeHtml(d.deadline || 'TBD')}</span></div>
+          <!-- Specs Matrix -->
+          <div class="grid grid-cols-2 gap-2 text-xs bg-[#0b0d13] p-2.5 rounded-lg border border-[#1b2230]">
+            <div>
+              <span class="text-[10px] text-slate-500 uppercase font-mono-code font-extrabold">Compensation</span>
+              <div class="text-emerald-400 font-bold tabular-nums truncate">${escapeHtml(d.ctc_or_stipend || 'Not disclosed')}</div>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-500 uppercase font-mono-code font-extrabold">Form Deadline</span>
+              <div class="text-amber-400 font-bold font-mono-code tabular-nums truncate">${escapeHtml(d.deadline || 'TBD')}</div>
+            </div>
           </div>
 
-          <!-- Quick Action Buttons -->
-          <div class="flex items-center justify-between pt-1 gap-2 border-t border-slate-800/40">
-            <button onclick="syncCalendar('${escapeHtml(d.company_name)}', '${escapeHtml(d.deadline)}', '${escapeHtml(d.apply_link || '')}')" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
-              <i class="fa-regular fa-calendar-plus text-indigo-400"></i>
+          <!-- 3-Button Action Dock -->
+          <div class="flex items-center gap-1.5 pt-0.5">
+            <button onclick="syncCalendar('${escapeHtml(d.company_name)}', '${escapeHtml(d.deadline)}', '${escapeHtml(d.apply_link || '')}')" class="flex-1 py-1.5 bg-[#161b26] hover:bg-[#1e2433] text-slate-300 text-[11px] font-bold font-mono-code rounded-lg flex items-center justify-center space-x-1 border border-[#252c3d] tactile-press">
+              <i class="fa-regular fa-calendar-plus text-indigo-400 text-xs"></i>
               <span>Calendar</span>
             </button>
-            <button onclick="openPrepModal(${d.id})" class="flex-1 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1 border border-amber-500/20">
-              <i class="fa-solid fa-lightbulb text-amber-400"></i>
+            <button onclick="openPrepModal(${d.id})" class="flex-1 py-1.5 bg-amber-500/10 hover:bg-amber-500/15 text-amber-300 text-[11px] font-bold font-mono-code rounded-lg flex items-center justify-center space-x-1 border border-amber-500/25 tactile-press">
+              <i class="fa-solid fa-lightbulb text-amber-400 text-xs"></i>
               <span>OA Intel</span>
             </button>
             ${d.apply_link ? `
-              <a href="${escapeHtml(d.apply_link)}" target="_blank" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg flex items-center justify-center space-x-1 shadow">
-                <span>Apply</span>
+              <a href="${escapeHtml(d.apply_link)}" target="_blank" class="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-extrabold font-mono-code rounded-lg flex items-center justify-center space-x-1 shadow-sm tactile-press">
+                <span>Form</span>
                 <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
               </a>
             ` : ''}
@@ -676,22 +804,19 @@
       });
     }
 
-    // Google Calendar Sync Helper
     function syncCalendar(company, deadline, applyLink) {
-      const title = encodeURIComponent(`Deadline: ${company} Placement Form`);
-      const details = encodeURIComponent(`Campus Drive Registration Deadline for ${company}.\nApply link: ${applyLink}\nMake sure your form is submitted before closing!`);
-      // Standard ISO timestamp for calendar intent
+      const title = encodeURIComponent(`Deadline: ${company} Placement Registration`);
+      const details = encodeURIComponent(`DBIT Campus Recruitment Drive for ${company}.\nApply link: ${applyLink}\nSubmit before form closes!`);
       const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=Online`;
       window.open(gcalUrl, '_blank');
-      showToast('Opening Google Calendar...');
+      showToast('Opening Google Calendar');
     }
 
-    // OA Prep Modal
     function openPrepModal(driveId) {
       fetch(`/api/drives/${driveId}/prep-pack`).then(r => r.json()).then(pack => {
         document.getElementById('prep-company').textContent = pack.company || 'Company Intel';
         document.getElementById('prep-pattern').textContent = pack.exam_pattern || 'Standard Online Assessment';
-        document.getElementById('prep-marking').textContent = pack.negative_marking ? `Marking: ${pack.negative_marking}` : '';
+        document.getElementById('prep-marking').textContent = pack.negative_marking ? `Evaluation rule: ${pack.negative_marking}` : '';
 
         const topicsList = document.getElementById('prep-topics');
         topicsList.innerHTML = '';
@@ -717,7 +842,6 @@
       document.getElementById('prep-modal').classList.add('hidden');
     }
 
-    // Modal Drive Details
     function openModal(id) {
       activeModalDriveId = id;
       fetch(`/api/drives/${id}`).then(r => r.json()).then(drive => {
@@ -730,17 +854,16 @@
         document.getElementById('modal-eligibility').textContent = drive.eligibility_criteria || 'Refer details';
         document.getElementById('modal-status-select').value = drive.app_status || drive.status || 'Announced';
 
-        // Eligibility breakdown box
         const eligBox = document.getElementById('modal-eligibility-box');
         if (drive.eligibility) {
           const isElig = drive.eligibility.is_eligible;
           eligBox.className = isElig 
-            ? "p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1" 
-            : "p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs space-y-1";
+            ? "p-3 rounded-xl border border-emerald-500/25 bg-emerald-950/20 text-xs space-y-1" 
+            : "p-3 rounded-xl border border-rose-500/25 bg-rose-950/20 text-xs space-y-1";
           eligBox.innerHTML = `
-            <div class="font-bold flex items-center space-x-1.5 ${isElig ? 'text-emerald-400' : 'text-rose-400'}">
+            <div class="font-extrabold flex items-center space-x-1.5 font-mono-code ${isElig ? 'text-emerald-400' : 'text-rose-400'}">
               <i class="${isElig ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i>
-              <span>${isElig ? 'You Are 100% Eligible for this Drive' : 'Eligibility Criteria Mismatch'}</span>
+              <span>${isElig ? 'ELIGIBILITY AUDIT: 100% MATCH' : 'ELIGIBILITY AUDIT: CRITERIA MISMATCH'}</span>
             </div>
             <ul class="list-disc list-inside text-[11px] text-slate-300">
               ${(drive.eligibility.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
@@ -756,16 +879,15 @@
           applyBtn.classList.add('hidden');
         }
 
-        // Updates timeline
         const updatesContainer = document.getElementById('modal-updates-list');
         updatesContainer.innerHTML = '';
         if (drive.updates && drive.updates.length > 0) {
           drive.updates.forEach(u => {
             const item = document.createElement('div');
-            item.className = "p-2 bg-slate-950 rounded-lg border border-slate-800/80 text-[11px] space-y-0.5";
+            item.className = "p-2.5 bg-[#0b0d13] rounded-lg border border-[#1b2230] text-[11px] space-y-1";
             item.innerHTML = `
-              <div class="flex justify-between items-center text-slate-500 text-[10px]">
-                <span class="font-bold text-amber-400 uppercase">${escapeHtml(u.field_changed)}</span>
+              <div class="flex justify-between items-center text-slate-500 text-[10px] font-mono-code">
+                <span class="font-extrabold text-amber-400 uppercase">${escapeHtml(u.field_changed)}</span>
                 <span>${u.created_at || ''}</span>
               </div>
               <p class="text-slate-200">${escapeHtml(u.change_summary)}</p>
@@ -773,7 +895,7 @@
             updatesContainer.appendChild(item);
           });
         } else {
-          updatesContainer.innerHTML = '<div class="text-[11px] text-slate-500 italic">No amendments posted. Original circular holds.</div>';
+          updatesContainer.innerHTML = '<div class="text-[11px] text-slate-500 italic font-mono-code">No amendments posted. Original circular holds.</div>';
         }
 
         document.getElementById('details-modal').classList.remove('hidden');
@@ -793,7 +915,7 @@
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ app_status, status: app_status })
       }).then(() => {
-        showToast('Application status updated!');
+        showToast('Status updated');
         filterDrives();
       });
     }
@@ -802,15 +924,15 @@
       currentFilter = status;
       document.querySelectorAll('.filter-tab').forEach(b => {
         if (b.dataset.status === status) {
-          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap";
+          b.className = "filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-indigo-600 text-white whitespace-nowrap shadow-sm";
         } else {
-          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap";
+          b.className = "filter-tab px-3 py-1 rounded-md text-[11px] font-semibold bg-[#12151e] border border-[#232938] text-slate-400 hover:text-white whitespace-nowrap";
         }
       });
       filterDrives();
     }
 
-    // Verify Sheet Upload Handler
+    // Official Receipt Inspector
     function handleFileUpload(input) {
       if (!input.files || input.files.length === 0) return;
       const file = input.files[0];
@@ -833,35 +955,49 @@
         if (res.status === 'matched') {
           const isReg = res.verification_type === 'REGISTRATION_CONFIRMATION';
           resultCard.className = isReg 
-            ? "rounded-xl p-3.5 space-y-2 border border-emerald-500/40 bg-emerald-950/30 text-emerald-200" 
-            : "rounded-xl p-3.5 space-y-2 border border-purple-500/40 bg-purple-950/30 text-purple-200";
+            ? "rounded-xl p-3.5 space-y-2 border border-emerald-500/40 bg-emerald-950/25 text-emerald-200" 
+            : "rounded-xl p-3.5 space-y-2 border border-purple-500/40 bg-purple-950/25 text-purple-200";
 
           resultCard.innerHTML = `
-            <div class="flex items-center space-x-2 font-bold text-sm">
-              <i class="${isReg ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-trophy text-amber-400'}"></i>
-              <span>${isReg ? 'Registration Successfully Confirmed!' : 'Shortlisted for Next Round!'}</span>
+            <div class="flex items-center justify-between border-b border-[#283830] pb-2">
+              <div class="flex items-center space-x-2 font-extrabold text-xs font-mono-code">
+                <i class="${isReg ? 'fa-solid fa-stamp text-emerald-400' : 'fa-solid fa-trophy text-amber-400'}"></i>
+                <span>${isReg ? 'OFFICIAL REGISTRATION VERIFIED' : 'ROUND 2 SHORTLIST VERIFIED'}</span>
+              </div>
+              <span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-mono-code px-1.5 py-0.5 rounded">ROW #${res.row_index}</span>
             </div>
-            <p class="text-xs">${escapeHtml(res.summary)}</p>
-            <div class="text-[11px] bg-slate-950/70 p-2 rounded border border-slate-800 font-mono text-slate-300">
-              Matched Row: ${escapeHtml((res.matched_row || []).join(' | '))}
+            <p class="text-xs text-slate-200">${escapeHtml(res.summary)}</p>
+            <div class="text-[10px] bg-[#090b10] p-2 rounded border border-[#1e2820] font-mono-code text-slate-300 break-all">
+              Record: ${escapeHtml((res.matched_row || []).join(' | '))}
             </div>
+            <button onclick="copyDisputeProof('${escapeHtml(res.company_name)}', '${res.row_index}', '${escapeHtml((res.matched_row || []).join(' | '))}')" class="w-full py-1.5 bg-[#14231b] hover:bg-[#1a2f24] border border-emerald-500/30 text-emerald-300 text-[11px] font-mono-code font-bold rounded-lg tactile-press flex items-center justify-center space-x-1">
+              <i class="fa-regular fa-copy text-xs"></i>
+              <span>Copy Verification Proof for Coordinator</span>
+            </button>
           `;
-          showToast(isReg ? 'Registration Confirmed!' : 'Shortlisted!');
+          showToast(isReg ? 'Registration Verified' : 'Shortlisted');
         } else {
-          resultCard.className = "rounded-xl p-3.5 space-y-2 border border-amber-500/40 bg-amber-950/30 text-amber-200";
+          resultCard.className = "rounded-xl p-3.5 space-y-2 border border-amber-500/40 bg-amber-950/25 text-amber-200";
           resultCard.innerHTML = `
-            <div class="flex items-center space-x-2 font-bold text-sm text-amber-400">
+            <div class="flex items-center space-x-2 font-extrabold text-xs font-mono-code text-amber-400">
               <i class="fa-solid fa-triangle-exclamation"></i>
-              <span>USN Not Found in this List</span>
+              <span>NOT FOUND IN THIS LIST</span>
             </div>
-            <p class="text-xs">${escapeHtml(res.summary)}</p>
-            <p class="text-[11px] text-slate-400">If you submitted the Google Form, please verify that your submission went through or alert the placement coordinator.</p>
+            <p class="text-xs text-slate-200">${escapeHtml(res.summary)}</p>
+            <p class="text-[10px] text-slate-400 leading-relaxed">Action: If you submitted your response before deadline, share your Google Form submission email receipt with the placement officer.</p>
           `;
         }
         refreshAll();
       }).catch(err => {
         loading.classList.add('hidden');
-        alert('Error scanning sheet: ' + err);
+        alert('Scanner error: ' + err);
+      });
+    }
+
+    function copyDisputeProof(company, row, record) {
+      const msg = `Hi Sir/Madam, My USN ${studentProfile.usn} is registered for ${company}. Record found at Row #${row}: ${record}`;
+      navigator.clipboard.writeText(msg).then(() => {
+        showToast('Proof template copied');
       });
     }
 

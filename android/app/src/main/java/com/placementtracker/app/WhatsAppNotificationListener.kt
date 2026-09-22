@@ -70,4 +70,11 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         super.onListenerDisconnected()
         Log.w(TAG, "WhatsApp Notification Listener disconnected.")
     }
+
+    override fun onDestroy() {
+        try {
+            scope.cancel()
+        } catch (e: Exception) {}
+        super.onDestroy()
+    }
 }

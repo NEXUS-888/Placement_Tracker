@@ -14,7 +14,7 @@ import org.json.JSONObject
 
 class WebAppInterface(private val activity: Activity) {
 
-    private val db = DatabaseHelper(activity)
+    private val db = DatabaseHelper.getInstance(activity)
     private val scope = CoroutineScope(Dispatchers.Main)
 
     @JavascriptInterface

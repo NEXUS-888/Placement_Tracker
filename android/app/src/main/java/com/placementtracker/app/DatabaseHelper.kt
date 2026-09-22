@@ -15,6 +15,14 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
         const val TABLE_DRIVES = "drives"
         const val TABLE_UPDATES = "drive_updates"
+
+        @Volatile
+        private var instance: DatabaseHelper? = null
+
+        fun getInstance(context: Context): DatabaseHelper =
+            instance ?: synchronized(this) {
+                instance ?: DatabaseHelper(context.applicationContext).also { instance = it }
+            }
     }
 
     override fun onCreate(db: SQLiteDatabase) {
