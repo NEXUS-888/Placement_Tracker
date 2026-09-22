@@ -14,6 +14,8 @@ object PlacementNotifier {
 
     private const val CHANNEL_NEW_DRIVES = "placement_new_drives"
     private const val CHANNEL_UPDATES = "placement_updates"
+    private const val CHANNEL_SHORTLISTS = "placement_shortlists"
+    private const val CHANNEL_REGISTRATION = "placement_registration"
 
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -39,8 +41,28 @@ object PlacementNotifier {
                 enableLights(true)
             }
 
+            val shortlistChannel = NotificationChannel(
+                CHANNEL_SHORTLISTS,
+                "Interview & OA Shortlists",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Urgent high-priority alerts when your USN is found in interview shortlists"
+                enableVibration(true)
+                enableLights(true)
+            }
+
+            val regChannel = NotificationChannel(
+                CHANNEL_REGISTRATION,
+                "Registration Confirmations",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Confirmation notifications when your registration is verified by placement cell"
+            }
+
             manager.createNotificationChannel(newDrivesChannel)
             manager.createNotificationChannel(updatesChannel)
+            manager.createNotificationChannel(shortlistChannel)
+            manager.createNotificationChannel(regChannel)
         }
     }
 
@@ -117,4 +139,56 @@ object PlacementNotifier {
 
         manager.notify((company + "_update").hashCode(), builder.build())
     }
+
+    fun showShortlistNotification(context: Context, company: String, summary: String, details: String) {
+        initChannels(context)
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            System.currentTimeMillis().toInt(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_SHORTLISTS)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("🎉 SHORTLISTED: $company Round 2!")
+            .setContentText(summary)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("Congratulations!\n\n$summary\n\n$details"))
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        manager.notify((company + "_shortlist").hashCode(), builder.build())
+    }
+
+    fun showRegistrationConfirmedNotification(context: Context, company: String, summary: String) {
+        initChannels(context)
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            System.currentTimeMillis().toInt(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_REGISTRATION)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("✅ Registration Verified: $company")
+            .setContentText(summary)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        manager.notify((company + "_reg_confirm").hashCode(), builder.build())
+    }
 }
+

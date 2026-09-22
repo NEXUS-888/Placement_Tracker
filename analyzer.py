@@ -406,3 +406,370 @@ def process_placement_message(
             "company_name": company_name,
             "drive_data": drive_data
         }
+
+# ==============================================================================
+# SPREADSHEET & CANDIDATE VERIFICATION SCANNER (Excel / CSV / PDF)
+# ==============================================================================
+
+def extract_spreadsheet_rows(file_path: str) -> List[List[str]]:
+    """Extracts rows of strings from .xlsx, .xls, or .csv files."""
+    f_lower = file_path.lower()
+    rows: List[List[str]] = []
+
+    # 1. CSV Files
+    if f_lower.endswith(".csv"):
+        import csv
+        for enc in ("utf-8", "latin-1", "cp1252"):
+            try:
+                with open(file_path, "r", encoding=enc, errors="replace") as f:
+                    reader = csv.reader(f)
+                    for r in reader:
+                        rows.append([str(c).strip() for c in r if str(c).strip()])
+                if rows:
+                    return rows
+            except Exception:
+                continue
+        return rows
+
+    # 2. Modern Excel (.xlsx) using openpyxl
+    if f_lower.endswith(".xlsx"):
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+            sheet = wb.active
+            if sheet:
+                for row in sheet.iter_rows(values_only=True):
+                    row_strs = [str(c).strip() for c in row if c is not None and str(c).strip() != ""]
+                    if row_strs:
+                        rows.append(row_strs)
+            wb.close()
+            return rows
+        except Exception as e:
+            print(f"[Analyzer] openpyxl failed, falling back to ZIP XML: {e}")
+
+        # Fallback: ZIP XML parsing
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+            with zipfile.ZipFile(file_path) as z:
+                shared = []
+                if "xl/sharedStrings.xml" in z.namelist():
+                    tree = ET.fromstring(z.read("xl/sharedStrings.xml"))
+                    for si in tree.findall("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}si"):
+                        t_elem = si.find("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t")
+                        shared.append(t_elem.text if t_elem is not None and t_elem.text else "")
+
+                if "xl/worksheets/sheet1.xml" in z.namelist():
+                    sheet_tree = ET.fromstring(z.read("xl/worksheets/sheet1.xml"))
+                    for row_elem in sheet_tree.findall(".//{http://schemas.openxmlformats.org/spreadsheetml/2006/main}row"):
+                        curr_row = []
+                        for c_elem in row_elem.findall("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}c"):
+                            t_attr = c_elem.attrib.get("t", "")
+                            v_elem = c_elem.find("{http://schemas.openxmlformats.org/spreadsheetml/2006/main}v")
+                            if v_elem is not None and v_elem.text:
+                                val = v_elem.text
+                                if t_attr == "s" and val.isdigit() and int(val) < len(shared):
+                                    val = shared[int(val)]
+                                curr_row.append(str(val).strip())
+                        if curr_row:
+                            rows.append(curr_row)
+            return rows
+        except Exception as e:
+            print(f"[Analyzer] ZIP XML fallback failed: {e}")
+            return rows
+
+    return rows
+
+def scan_file_for_candidate(
+    file_path: str,
+    original_filename: str,
+    target_usn: Optional[str] = None,
+    target_name: Optional[str] = None,
+    drive_id: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Scans an uploaded or intercepted Excel/PDF/CSV file for student USN or Name.
+    Detects whether this is a REGISTRATION CONFIRMATION sheet or an INTERVIEW SHORTLIST.
+    Auto-updates drive status in database accordingly.
+    """
+    profile = db.get_student_profile()
+    usn = (target_usn or profile.get("usn") or "").strip().upper()
+    student_name = (target_name or profile.get("full_name") or "").strip().lower()
+
+    if not usn and not student_name:
+        return {
+            "status": "error",
+            "message": "Please configure your USN or Name in Profile before scanning files."
+        }
+
+    f_lower = original_filename.lower()
+    clean_f_name = re.sub(r'[-_.]', ' ', f_lower)
+    all_text = ""
+    rows: List[List[str]] = []
+
+    if f_lower.endswith(".pdf"):
+        all_text = extract_text_from_pdf(file_path)
+        lines = [line.strip() for line in all_text.splitlines() if line.strip()]
+        rows = [[line] for line in lines]
+    else:
+        rows = extract_spreadsheet_rows(file_path)
+        all_text = " ".join(" ".join(r) for r in rows)
+
+    clean_search_text = clean_f_name + " " + re.sub(r'[-_.]', ' ', all_text[:2000].lower())
+
+    # 1. Determine verification type
+    is_shortlist = bool(re.search(r'\b(shortlist|round\s*[123]|interview|selected|selects|cleared|assessment\s*result)\b', clean_search_text, re.I))
+    is_registration = bool(re.search(r'\b(registered|registration|responses|applied|submission|enrolled|registered\s*students)\b', clean_search_text, re.I))
+
+    if is_shortlist:
+        verification_type = "SHORTLIST"
+    elif is_registration:
+        verification_type = "REGISTRATION_CONFIRMATION"
+    else:
+        verification_type = "STUDENT_LIST"
+
+    # 2. Search for USN or Name in rows
+    matched_row = None
+    row_index = -1
+    for idx, row in enumerate(rows):
+        row_str = " ".join(row).upper()
+        if usn and usn in row_str:
+            matched_row = row
+            row_index = idx + 1
+            break
+        if student_name and len(student_name) > 3 and student_name in row_str.lower():
+            matched_row = row
+            row_index = idx + 1
+            break
+
+    # 3. Match Drive (by drive_id or filename search)
+    target_drive = None
+    if drive_id:
+        target_drive = db.get_drive_by_id(drive_id)
+    if not target_drive:
+        # Search company name inside all drives
+        all_drives = db.get_all_drives()
+        for d in all_drives:
+            c_name = (d.get("company_name") or "").strip().lower()
+            c_clean = re.sub(r'[-_.]', ' ', c_name)
+            if c_clean and len(c_clean) > 2 and (c_clean in clean_f_name or c_clean in clean_search_text):
+                target_drive = d
+                break
+
+    matched_drive_id = target_drive["id"] if target_drive else None
+    company_name = target_drive["company_name"] if target_drive else "Company"
+
+    if matched_row:
+        matched_text = " | ".join(matched_row)
+        if verification_type == "REGISTRATION_CONFIRMATION":
+            summary = f"Verified: Registration confirmed for {company_name}! Found USN {usn} at row #{row_index}."
+            new_app_status = "Registered Confirmed"
+        elif verification_type == "SHORTLIST":
+            summary = f"CONGRATULATIONS: You are SHORTLISTED for {company_name}! Found USN {usn} at row #{row_index}."
+            new_app_status = "Shortlisted"
+        else:
+            summary = f"Match found for {company_name} at row #{row_index}."
+            new_app_status = "Applied"
+
+        if matched_drive_id:
+            db.update_drive_app_status(matched_drive_id, new_app_status)
+            db.log_verification(matched_drive_id, original_filename, verification_type, True, matched_text, summary)
+
+        return {
+            "status": "matched",
+            "verification_type": verification_type,
+            "company_name": company_name,
+            "drive_id": matched_drive_id,
+            "row_index": row_index,
+            "matched_row": matched_row,
+            "summary": summary,
+            "new_app_status": new_app_status
+        }
+    else:
+        if verification_type == "REGISTRATION_CONFIRMATION":
+            summary = f"WARNING: USN {usn} was NOT found in the registered students list for {company_name} ({original_filename})."
+        else:
+            summary = f"USN {usn} was not found in {original_filename}."
+
+        if matched_drive_id:
+            db.log_verification(matched_drive_id, original_filename, verification_type, False, "", summary)
+
+        return {
+            "status": "not_found",
+            "verification_type": verification_type,
+            "company_name": company_name,
+            "drive_id": matched_drive_id,
+            "summary": summary
+        }
+
+# ==============================================================================
+# ELIGIBILITY EVALUATOR ("Am I Eligible?" Matcher)
+# ==============================================================================
+
+def evaluate_eligibility(profile: Dict[str, Any], eligibility_str: str) -> Dict[str, Any]:
+    """
+    Evaluates student profile (branch, CGPA, backlogs, batch) against drive criteria.
+    Returns eligibility verdict, badges, and detailed reasons.
+    """
+    if not eligibility_str or eligibility_str.lower() in ("check details", "tbd", "refer details"):
+        return {
+            "is_eligible": True,
+            "badge": "Check Details",
+            "score": 80,
+            "reasons": ["Specific cutoffs not defined; open for registration review."]
+        }
+
+    text = eligibility_str.lower()
+    student_branch = (profile.get("branch") or "CSE").upper()
+    student_cgpa = float(profile.get("cgpa") or 0.0)
+    student_backlogs = int(profile.get("active_backlogs") or 0)
+    student_batch = int(profile.get("grad_batch") or 2027)
+
+    reasons = []
+    disqualifications = []
+
+    # 1. Batch Check
+    m_batch = re.search(r'\b(202[0-9])\b', text)
+    if m_batch:
+        req_batch = int(m_batch.group(1))
+        if student_batch == req_batch:
+            reasons.append(f"Graduation batch matches ({student_batch})")
+        else:
+            disqualifications.append(f"Requires {req_batch} batch (You are {student_batch})")
+
+    # 2. Branch Check
+    if "all stream" in text or "all branch" in text or "open to all" in text or "any stream" in text:
+        reasons.append("Open to all engineering branches")
+    else:
+        # Check specific branch mentions
+        common_branches = ["CSE", "ISE", "ECE", "EEE", "MECH", "CIVIL", "AIML", "AIDS", "IT"]
+        found_branches = [b for b in common_branches if re.search(r'\b' + re.escape(b) + r'\b', eligibility_str, re.I)]
+        if found_branches:
+            if student_branch in found_branches or (student_branch in ("CSE", "ISE", "AIML") and any(b in ("CSE", "IT") for b in found_branches)):
+                reasons.append(f"Branch {student_branch} is eligible")
+            else:
+                disqualifications.append(f"Branch {student_branch} not listed (Eligible: {', '.join(found_branches)})")
+
+    # 3. CGPA Check
+    m_cgpa = re.search(r'(?:cgpa|cutoff|criteria)[\s:]*([0-9\.]+)', text)
+    if m_cgpa:
+        try:
+            req_cgpa = float(m_cgpa.group(1))
+            if student_cgpa >= req_cgpa:
+                reasons.append(f"CGPA {student_cgpa:.2f} meets cutoff (>= {req_cgpa})")
+            else:
+                disqualifications.append(f"Requires CGPA {req_cgpa} (You have {student_cgpa:.2f})")
+        except ValueError:
+            pass
+
+    # 4. Backlog Check
+    if "no backlog" in text or "0 backlog" in text or "without backlog" in text or "no active backlog" in text:
+        if student_backlogs == 0:
+            reasons.append("Zero active backlogs requirement satisfied")
+        else:
+            disqualifications.append(f"No active backlogs allowed (You have {student_backlogs})")
+
+    is_eligible = len(disqualifications) == 0
+    badge = "Eligible" if is_eligible else "Ineligible"
+
+    return {
+        "is_eligible": is_eligible,
+        "badge": badge,
+        "score": 100 if is_eligible else 30,
+        "reasons": reasons if is_eligible else disqualifications,
+        "details": "; ".join(reasons if is_eligible else disqualifications)
+    }
+
+# ==============================================================================
+# AI OA CHEAT-SHEET & PREP PACK GENERATOR
+# ==============================================================================
+
+PREP_KNOWLEDGE_BASE = {
+    "besant technologies": {
+        "company": "Besant Technologies",
+        "exam_pattern": "Aptitude (Quants 20, Logical 20, Verbal 15) + Core IT Fundamentals MCQs (20 Qs). Duration: 60 mins.",
+        "negative_marking": "No negative marking.",
+        "top_topics": [
+            "Object-Oriented Programming (Polymorphism, Inheritance, Encapsulation)",
+            "SQL Joins, Group By, Subqueries & Transactions",
+            "Array Manipulation, Strings & Basic Time Complexity"
+        ],
+        "watchouts": [
+            "Includes a 3-month specialized technical training period prior to client deployment.",
+            "Offer letters handed over on drive day upon clearing technical screening."
+        ]
+    },
+    "tcs": {
+        "company": "Tata Consultancy Services (TCS)",
+        "exam_pattern": "TCS NQT: Cognitive (Numerical 20, Verbal 25, Reasoning 20) + Technical (Hands-on Coding 2 questions). Total: 165 mins.",
+        "negative_marking": "No negative marking in coding; sub-sectional timing enforced.",
+        "top_topics": [
+            "Arithmetic (Percentages, Time & Work, Profit & Loss)",
+            "Dynamic Programming & Greedy Algorithms (Prime numbers, Matrix, Arrays)",
+            "Pseudocode evaluation and pointer arithmetic"
+        ],
+        "watchouts": [
+            "Strict sectional timer: Cannot switch between sections once started.",
+            "Camera & microphone proctoring strictly monitored."
+        ]
+    },
+    "infosys": {
+        "company": "Infosys",
+        "exam_pattern": "Reasoning (15 Qs), Math/Quants (10 Qs), Verbal (20 Qs), Pseudocode (5 Qs), Puzzle Solving (4 Qs). Total: 100 mins.",
+        "negative_marking": "No negative marking.",
+        "top_topics": [
+            "Cryptarithmetic & Puzzle Solving",
+            "Permutations, Combinations & Probability",
+            "Pseudocode dry-running & Bitwise operators"
+        ],
+        "watchouts": [
+            "High weightage on Reasoning and Puzzle solving.",
+            "1-year service agreement bond typically required."
+        ]
+    }
+}
+
+def get_or_generate_oa_prep_pack(company_name: str, role: Optional[str] = None) -> Dict[str, Any]:
+    """Generates or fetches the OA Exam Pattern, Revision Topics, and Crucial Watchouts."""
+    c_lower = (company_name or "").lower().strip()
+    
+    # 1. Check curated knowledge base
+    for key, pack in PREP_KNOWLEDGE_BASE.items():
+        if key in c_lower or c_lower in key:
+            return pack
+
+    # 2. Call Gemini for tailor-made pack if available
+    api_key = os.getenv("GEMINI_API_KEY", GEMINI_API_KEY).strip()
+    if api_key:
+        prompt = f"""Generate a concise Placement Drive Preparation Intel Sheet for:
+Company: {company_name}
+Role: {role or 'Software Engineer'}
+
+Respond in JSON ONLY:
+{{
+  "company": "{company_name}",
+  "exam_pattern": "Exam pattern (Sections, question count, duration)",
+  "negative_marking": "Yes/No details",
+  "top_topics": ["Topic 1 with details", "Topic 2 with details", "Topic 3 with details"],
+  "watchouts": ["Watchout 1 (e.g. bonds or traps)", "Watchout 2"]
+}}"""
+        res = call_gemini("Generate OA Intel", prompt)
+        if res and "exam_pattern" in res:
+            return res
+
+    # 3. Intelligent generic fallback
+    return {
+        "company": company_name,
+        "exam_pattern": f"Online Assessment (Quants 20, Logical 20, Verbal 20) + Technical Coding (2 Questions). Duration: 90 mins.",
+        "negative_marking": "Generally no negative marking for MCQs.",
+        "top_topics": [
+            "Data Structures: Two Pointers, HashMaps, Sliding Window & String manipulation",
+            "Database Systems: SQL Joins, Indexing & Normalization",
+            "Quants: Speed Time Distance, Work & Time, Ratios & Percentages"
+        ],
+        "watchouts": [
+            "Verify service bond conditions and training duration if applicable.",
+            "Ensure browser webcam and screen sharing permissions are test-configured."
+        ]
+    }
+

@@ -37,6 +37,20 @@ object PlacementAnalyzer {
         val companyName = analysis.optString("company_name", "Unknown").trim()
         val msgType = analysis.optString("message_type", "NEW_DRIVE")
 
+        // Check if student's USN is in this message
+        val profileJsonStr = context.getSharedPreferences("placement_prefs", Context.MODE_PRIVATE)
+            .getString("student_profile_json", "{}") ?: "{}"
+        val profileObj = try { JSONObject(profileJsonStr) } catch (e: Exception) { JSONObject() }
+        val myUsn = profileObj.optString("usn", "").trim().uppercase()
+
+        if (myUsn.isNotEmpty() && rawText.uppercase().contains(myUsn)) {
+            if (rawText.contains("shortlist", ignoreCase = true) || rawText.contains("round", ignoreCase = true) || rawText.contains("select", ignoreCase = true)) {
+                PlacementNotifier.showShortlistNotification(context, companyName, "Your USN $myUsn was found in the Shortlist announcement!", rawText.take(300))
+            } else if (rawText.contains("register", ignoreCase = true) || rawText.contains("submission", ignoreCase = true)) {
+                PlacementNotifier.showRegistrationConfirmedNotification(context, companyName, "Your USN $myUsn was found in the confirmed registrations list!")
+            }
+        }
+
         // 4. Match against existing drives in phone SQLite database
         val existingDrive = if (companyName != "Unknown" && companyName.isNotEmpty()) {
             db.findDriveByCompany(companyName)

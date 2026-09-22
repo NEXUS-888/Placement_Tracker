@@ -31,9 +31,42 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 apply_link TEXT,
                 description TEXT,
                 status TEXT DEFAULT 'Upcoming',
+                app_status TEXT DEFAULT 'Announced',
                 raw_message TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS student_profile (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                usn TEXT,
+                full_name TEXT,
+                email TEXT,
+                phone TEXT,
+                branch TEXT,
+                cgpa REAL DEFAULT 0.0,
+                tenth_percentage REAL DEFAULT 0.0,
+                twelfth_percentage REAL DEFAULT 0.0,
+                active_backlogs INTEGER DEFAULT 0,
+                grad_batch INTEGER DEFAULT 2027,
+                resume_link TEXT,
+                linkedin_url TEXT,
+                github_url TEXT
+            );
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS verifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                drive_id INTEGER,
+                filename TEXT,
+                verification_type TEXT,
+                is_matched INTEGER DEFAULT 0,
+                matched_text TEXT,
+                summary TEXT,
+                scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """.trimIndent())
 
@@ -52,8 +85,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_UPDATES")
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_DRIVES")
+        try {
+            db.execSQL("ALTER TABLE $TABLE_DRIVES ADD COLUMN app_status TEXT DEFAULT 'Announced'")
+        } catch (e: Exception) {}
         onCreate(db)
     }
 

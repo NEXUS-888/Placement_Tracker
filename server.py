@@ -36,11 +36,24 @@ app.add_middleware(
 )
 
 class StatusUpdateRequest(BaseModel):
-    status: str
+    status: Optional[str] = None
+    app_status: Optional[str] = None
 
-class IncomingMessageRequest(BaseModel):
-    text: str
-    sender: Optional[str] = "WhatsApp Coordinator"
+class ProfileRequest(BaseModel):
+    usn: Optional[str] = ""
+    full_name: Optional[str] = ""
+    email: Optional[str] = ""
+    phone: Optional[str] = ""
+    branch: Optional[str] = "CSE"
+    cgpa: Optional[float] = 0.0
+    tenth_percentage: Optional[float] = 0.0
+    twelfth_percentage: Optional[float] = 0.0
+    active_backlogs: Optional[int] = 0
+    history_backlogs: Optional[int] = 0
+    grad_batch: Optional[int] = 2027
+    resume_link: Optional[str] = ""
+    linkedin_url: Optional[str] = ""
+    github_url: Optional[str] = ""
 
 @app.get("/api/health")
 def health_check():
@@ -50,27 +63,81 @@ def health_check():
 def get_stats():
     return db.get_stats()
 
+@app.get("/api/profile")
+def get_profile():
+    return db.get_student_profile()
+
+@app.post("/api/profile")
+def save_profile(payload: ProfileRequest):
+    return db.save_student_profile(payload.model_dump())
+
 @app.get("/api/drives")
 def list_drives(status: Optional[str] = Query(None), search: Optional[str] = Query(None)):
-    return db.get_all_drives(status=status, search=search)
+    drives = db.get_all_drives(status=status, search=search)
+    profile = db.get_student_profile()
+    
+    # Enrich each drive with real-time eligibility evaluation
+    for d in drives:
+        d["eligibility"] = analyzer.evaluate_eligibility(profile, d.get("eligibility_criteria", ""))
+        d["verifications"] = db.get_verifications_for_drive(d["id"])
+    return drives
 
 @app.get("/api/drives/{drive_id}")
 def get_drive(drive_id: int):
     drive = db.get_drive_by_id(drive_id)
     if not drive:
         raise HTTPException(status_code=404, detail="Drive not found")
+    profile = db.get_student_profile()
+    drive["eligibility"] = analyzer.evaluate_eligibility(profile, drive.get("eligibility_criteria", ""))
+    drive["verifications"] = db.get_verifications_for_drive(drive_id)
+    drive["prep_pack"] = analyzer.get_or_generate_oa_prep_pack(drive.get("company_name", ""), drive.get("role"))
     return drive
+
+@app.get("/api/drives/{drive_id}/prep-pack")
+def get_prep_pack(drive_id: int):
+    drive = db.get_drive_by_id(drive_id)
+    if not drive:
+        raise HTTPException(status_code=404, detail="Drive not found")
+    return analyzer.get_or_generate_oa_prep_pack(drive.get("company_name", ""), drive.get("role"))
 
 @app.patch("/api/drives/{drive_id}/status")
 def update_status(drive_id: int, payload: StatusUpdateRequest):
-    valid_statuses = ["Upcoming", "Applied", "Ongoing", "Shortlisted", "Rejected", "Closed"]
-    if payload.status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Status must be one of {valid_statuses}")
+    updates = {}
+    if payload.status:
+        updates["status"] = payload.status
+    if payload.app_status:
+        updates["app_status"] = payload.app_status
     
-    success = db.update_drive(drive_id, {"status": payload.status})
+    if not updates:
+        raise HTTPException(status_code=400, detail="No status updates provided")
+        
+    success = db.update_drive(drive_id, updates)
     if not success:
         raise HTTPException(status_code=404, detail="Drive not found or could not be updated")
-    return {"success": True, "new_status": payload.status}
+    return {"success": True, "updated": updates}
+
+@app.post("/api/verify-file")
+async def verify_file(
+    file: UploadFile = File(...),
+    drive_id: Optional[int] = Form(None),
+    usn: Optional[str] = Form(None)
+):
+    """
+    Uploads an Excel, CSV, or PDF file (e.g. Registered Students sheet or Shortlist).
+    Scans for candidate USN and updates drive status.
+    """
+    safe_name = f"verify_{int(os.path.getmtime(db.DB_FILE))}_{file.filename.replace(' ', '_')}"
+    saved_file_path = os.path.join(UPLOAD_DIR, safe_name)
+    with open(saved_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = analyzer.scan_file_for_candidate(
+        file_path=saved_file_path,
+        original_filename=file.filename,
+        target_usn=usn,
+        drive_id=drive_id
+    )
+    return result
 
 @app.post("/api/webhook/incoming")
 async def incoming_webhook(
@@ -80,7 +147,7 @@ async def incoming_webhook(
 ):
     """
     Webhook endpoint called by whatsapp_listener.js or UI Simulator.
-    Accepts message text and optional uploaded file (PDF / image).
+    Accepts message text and optional uploaded file (PDF / Word / Excel).
     """
     saved_file_path = None
     original_filename = None
@@ -91,6 +158,14 @@ async def incoming_webhook(
         saved_file_path = os.path.join(UPLOAD_DIR, safe_name)
         with open(saved_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+    # If the file is an Excel/spreadsheet or PDF and contains shortlist/registered keywords, also run verification scanner
+    f_lower = (original_filename or "").lower()
+    if saved_file_path and (f_lower.endswith(".xlsx") or f_lower.endswith(".csv") or ("shortlist" in f_lower or "registered" in f_lower)):
+        # Run scanner
+        scan_res = analyzer.scan_file_for_candidate(saved_file_path, original_filename)
+        if scan_res.get("status") == "matched":
+            print(f"[Server] Candidate matched in file: {scan_res.get('summary')}")
 
     if not text and not saved_file_path:
         raise HTTPException(status_code=400, detail="Either 'text' or 'file' must be provided.")

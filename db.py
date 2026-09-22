@@ -32,9 +32,41 @@ def init_db():
             apply_link TEXT,
             description TEXT,
             status TEXT DEFAULT 'Upcoming',
+            app_status TEXT DEFAULT 'Announced',
             raw_message TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS student_profile (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            usn TEXT,
+            full_name TEXT,
+            email TEXT,
+            phone TEXT,
+            branch TEXT,
+            cgpa REAL DEFAULT 0.0,
+            tenth_percentage REAL DEFAULT 0.0,
+            twelfth_percentage REAL DEFAULT 0.0,
+            active_backlogs INTEGER DEFAULT 0,
+            history_backlogs INTEGER DEFAULT 0,
+            grad_batch INTEGER DEFAULT 2027,
+            resume_link TEXT,
+            linkedin_url TEXT,
+            github_url TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS verifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            drive_id INTEGER,
+            filename TEXT,
+            verification_type TEXT,
+            is_matched INTEGER DEFAULT 0,
+            matched_text TEXT,
+            summary TEXT,
+            scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS drive_updates (
@@ -60,6 +92,11 @@ def init_db():
             FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE SET NULL
         );
         """)
+        # Safe migration if table exists without app_status
+        try:
+            conn.execute("ALTER TABLE drives ADD COLUMN app_status TEXT DEFAULT 'Announced'")
+        except Exception:
+            pass
 
 def insert_drive(data: Dict[str, Any]) -> int:
     with get_db() as conn:
@@ -92,7 +129,7 @@ def update_drive(drive_id: int, updates: Dict[str, Any]) -> bool:
     for k, v in updates.items():
         if k in ("company_name", "role", "job_type", "ctc_or_stipend",
                  "eligibility_criteria", "deadline", "drive_date",
-                 "apply_link", "description", "status"):
+                 "apply_link", "description", "status", "app_status"):
             fields.append(f"{k} = ?")
             values.append(v)
     if not fields:
@@ -183,6 +220,106 @@ def get_stats() -> Dict[str, Any]:
             "total_updates": updates_count,
             "recent_updates": [dict(r) for r in recent_updates]
         }
+
+def get_student_profile() -> Dict[str, Any]:
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM student_profile WHERE id = 1").fetchone()
+        if row:
+            return dict(row)
+        # Default placeholder profile if not yet saved
+        return {
+            "id": 1,
+            "usn": "",
+            "full_name": "",
+            "email": "",
+            "phone": "",
+            "branch": "CSE",
+            "cgpa": 0.0,
+            "tenth_percentage": 0.0,
+            "twelfth_percentage": 0.0,
+            "active_backlogs": 0,
+            "history_backlogs": 0,
+            "grad_batch": 2027,
+            "resume_link": "",
+            "linkedin_url": "",
+            "github_url": ""
+        }
+
+def save_student_profile(data: Dict[str, Any]) -> Dict[str, Any]:
+    with get_db() as conn:
+        conn.execute("""
+            INSERT INTO student_profile (
+                id, usn, full_name, email, phone, branch, cgpa,
+                tenth_percentage, twelfth_percentage, active_backlogs,
+                history_backlogs, grad_batch, resume_link, linkedin_url,
+                github_url, updated_at
+            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                usn = excluded.usn,
+                full_name = excluded.full_name,
+                email = excluded.email,
+                phone = excluded.phone,
+                branch = excluded.branch,
+                cgpa = excluded.cgpa,
+                tenth_percentage = excluded.tenth_percentage,
+                twelfth_percentage = excluded.twelfth_percentage,
+                active_backlogs = excluded.active_backlogs,
+                history_backlogs = excluded.history_backlogs,
+                grad_batch = excluded.grad_batch,
+                resume_link = excluded.resume_link,
+                linkedin_url = excluded.linkedin_url,
+                github_url = excluded.github_url,
+                updated_at = CURRENT_TIMESTAMP
+        """, (
+            data.get("usn", "").strip(),
+            data.get("full_name", "").strip(),
+            data.get("email", "").strip(),
+            data.get("phone", "").strip(),
+            data.get("branch", "CSE").strip(),
+            float(data.get("cgpa") or 0.0),
+            float(data.get("tenth_percentage") or 0.0),
+            float(data.get("twelfth_percentage") or 0.0),
+            int(data.get("active_backlogs") or 0),
+            int(data.get("history_backlogs") or 0),
+            int(data.get("grad_batch") or 2027),
+            data.get("resume_link", "").strip(),
+            data.get("linkedin_url", "").strip(),
+            data.get("github_url", "").strip()
+        ))
+    return get_student_profile()
+
+def update_drive_app_status(drive_id: int, app_status: str) -> bool:
+    with get_db() as conn:
+        res = conn.execute("UPDATE drives SET app_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (app_status, drive_id))
+        return res.rowcount > 0
+
+def log_verification(
+    drive_id: Optional[int],
+    filename: str,
+    verification_type: str,
+    is_matched: bool,
+    matched_text: str = "",
+    summary: str = ""
+) -> int:
+    with get_db() as conn:
+        cursor = conn.execute("""
+            INSERT INTO verifications (
+                drive_id, filename, verification_type, is_matched, matched_text, summary, scanned_at
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (
+            drive_id,
+            filename,
+            verification_type,
+            1 if is_matched else 0,
+            matched_text,
+            summary
+        ))
+        return cursor.lastrowid
+
+def get_verifications_for_drive(drive_id: int) -> List[Dict[str, Any]]:
+    with get_db() as conn:
+        rows = conn.execute("SELECT * FROM verifications WHERE drive_id = ? ORDER BY scanned_at DESC", (drive_id,)).fetchall()
+        return [dict(r) for r in rows]
 
 if __name__ == "__main__":
     init_db()

@@ -2,261 +2,603 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Placement Tracker & Intelligence Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Placement Tracker & Vault</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
-          }
-        }
-      }
-    }
-  </script>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
-    .custom-scroll::-webkit-scrollbar { width: 6px; }
-    .custom-scroll::-webkit-scrollbar-track { background: #1e293b; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-20 select-none">
 
-  <!-- Top Navigation -->
-  <nav class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-        <i class="fa-solid fa-graduation-cap text-lg"></i>
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-2xl transition-all duration-300 opacity-0 pointer-events-none flex items-center space-x-2">
+    <i class="fa-solid fa-circle-check text-emerald-300"></i>
+    <span id="toast-msg">Copied to clipboard!</span>
+  </div>
+
+  <!-- Top App Bar -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40 backdrop-blur">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
+        <i class="fa-solid fa-graduation-cap text-sm"></i>
       </div>
       <div>
-        <h1 class="font-bold text-lg leading-tight">Placement Tracker</h1>
-        <p class="text-xs text-slate-400">WhatsApp Ingestion • Change Tracking • Discord Alerts</p>
+        <h1 class="font-bold text-base leading-tight">Placement Tracker</h1>
+        <p class="text-[10px] text-emerald-400 font-medium flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+          <span id="header-usn-badge">Monitoring Active</span>
+        </p>
       </div>
     </div>
-    <div class="flex items-center space-x-3">
-      <button onclick="toggleSimulator()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg flex items-center space-x-2 transition shadow-lg shadow-indigo-600/20">
-        <i class="fa-solid fa-paper-plane"></i>
-        <span>Simulate Ingestion</span>
-      </button>
-      <button onclick="fetchDrives(); fetchStats();" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition" title="Refresh">
+    <div class="flex items-center space-x-2">
+      <button onclick="refreshAll()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs" title="Refresh">
         <i class="fa-solid fa-rotate"></i>
       </button>
     </div>
-  </nav>
+  </header>
 
-  <div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+  <!-- Main View Container -->
+  <main class="p-4 space-y-4 max-w-lg mx-auto">
 
-    <!-- Stat Metric Cards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 text-sm font-medium mb-2">
-          <span>Total Drives</span>
-          <i class="fa-solid fa-building text-indigo-400"></i>
+    <!-- VIEW 1: DRIVES FEED -->
+    <div id="view-drives" class="space-y-3">
+      <!-- Search & Filters -->
+      <div class="space-y-2">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+          <input type="text" id="search-input" onkeyup="filterDrives()" placeholder="Search company, role, package..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-2 text-xs focus:border-indigo-500 focus:outline-none text-slate-200">
         </div>
-        <div class="text-3xl font-bold" id="stat-total">0</div>
-        <div class="text-xs text-slate-500 mt-1">Ingested via WhatsApp/Files</div>
+
+        <!-- Filter Chips -->
+        <div class="flex items-center space-x-1.5 overflow-x-auto custom-scroll pb-1">
+          <button onclick="setFilter('all')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap" data-status="all">All</button>
+          <button onclick="setFilter('eligible')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="eligible">🟢 Eligible</button>
+          <button onclick="setFilter('Registered Confirmed')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Registered Confirmed">✅ Confirmed</button>
+          <button onclick="setFilter('Shortlisted')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Shortlisted">🎉 Shortlisted</button>
+          <button onclick="setFilter('Applied')" class="filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap" data-status="Applied">Applied</button>
+        </div>
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 text-sm font-medium mb-2">
-          <span>Active Opportunities</span>
-          <i class="fa-solid fa-bolt text-emerald-400"></i>
-        </div>
-        <div class="text-3xl font-bold text-emerald-400" id="stat-active">0</div>
-        <div class="text-xs text-slate-500 mt-1">Upcoming or Ongoing</div>
+
+      <!-- Drives List -->
+      <div id="drives-container" class="space-y-3">
+        <!-- Rendered via JS -->
       </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 text-sm font-medium mb-2">
-          <span>My Applications</span>
-          <i class="fa-solid fa-check-double text-blue-400"></i>
-        </div>
-        <div class="text-3xl font-bold text-blue-400" id="stat-applied">0</div>
-        <div class="text-xs text-slate-500 mt-1">Marked as Applied</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 text-sm font-medium mb-2">
-          <span>Updates & Changes</span>
-          <i class="fa-solid fa-timeline text-amber-400"></i>
-        </div>
-        <div class="text-3xl font-bold text-amber-400" id="stat-updates">0</div>
-        <div class="text-xs text-slate-500 mt-1">Amendments detected</div>
+
+      <div id="empty-state" class="hidden text-center py-12 text-slate-500 space-y-2">
+        <i class="fa-solid fa-inbox text-3xl"></i>
+        <p class="text-xs">No placement announcements match this filter.</p>
       </div>
     </div>
 
-    <!-- Simulator Modal / Drawer -->
-    <div id="simulator-panel" class="hidden bg-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-2xl relative">
-      <div class="flex justify-between items-center mb-4">
+    <!-- VIEW 2: PLACEMENT VAULT (1-Tap Copy Assistant) -->
+    <div id="view-vault" class="hidden space-y-3">
+      <div class="bg-indigo-950/40 border border-indigo-800/40 rounded-xl p-3.5 flex items-center justify-between">
         <div>
-          <h2 class="font-bold text-lg text-indigo-400 flex items-center space-x-2">
-            <i class="fa-solid fa-flask"></i>
-            <span>Test Announcement Simulator</span>
+          <h2 class="font-bold text-xs text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>Placement Profile Vault</span>
           </h2>
-          <p class="text-xs text-slate-400">Paste any coordinator text or drop a placement PDF. It runs the exact extraction, diff detection & Discord alert.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">1-Tap to copy verified data directly into Google Forms.</p>
         </div>
-        <button onclick="toggleSimulator()" class="text-slate-400 hover:text-white p-1">
-          <i class="fa-solid fa-xmark text-lg"></i>
-        </button>
+        <button onclick="switchTab('profile')" class="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium">Edit</button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="vault-items" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+
+    <!-- VIEW 3: VERIFY SHEET (Excel/PDF USN Scanner) -->
+    <div id="view-verify" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">WhatsApp Message Content</label>
-          <textarea id="sim-text" rows="5" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm focus:border-indigo-500 focus:outline-none" placeholder="e.g. Amazon is hiring SDE Interns! CTC: 1.2 LPM. Eligibility: B.Tech CSE/IT with 7.5+ CGPA. Apply before 28th Sept: https://..."></textarea>
+          <h2 class="font-bold text-sm text-white flex items-center space-x-2">
+            <i class="fa-solid fa-file-excel text-emerald-400"></i>
+            <span>Registered Students & Shortlist Scanner</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            Upload any Excel (.xlsx, .csv) or PDF sent by the coordinator to verify your registration confirmation or interview shortlist.
+          </p>
         </div>
+
+        <div class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-xl p-5 text-center space-y-2 cursor-pointer bg-slate-950/50" onclick="document.getElementById('verify-file-input').click()">
+          <i class="fa-solid fa-cloud-arrow-up text-2xl text-indigo-400"></i>
+          <p class="text-xs font-semibold text-slate-300">Tap to upload Registered Students list or Shortlist</p>
+          <p class="text-[10px] text-slate-500">Supports .xlsx, .csv, and .pdf</p>
+          <input type="file" id="verify-file-input" class="hidden" accept=".xlsx,.csv,.pdf" onchange="handleFileUpload(this)">
+        </div>
+
+        <div id="scan-loading" class="hidden p-4 text-center space-y-2">
+          <div class="inline-block animate-spin text-indigo-400 text-xl"><i class="fa-solid fa-spinner"></i></div>
+          <p class="text-xs text-slate-300 font-medium">Scanning sheet rows for your USN & Name...</p>
+        </div>
+
+        <!-- Scan Result Card -->
+        <div id="scan-result-card" class="hidden rounded-xl p-3.5 space-y-2 border"></div>
+      </div>
+
+      <!-- Scanned Logs History -->
+      <div class="space-y-2">
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Verification History</h3>
+        <div id="verification-history" class="space-y-2">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 4: STUDENT PROFILE -->
+    <div id="view-profile" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <div class="border-b border-slate-800 pb-2 flex justify-between items-center">
+          <h2 class="font-bold text-sm text-white flex items-center space-x-2">
+            <i class="fa-solid fa-user-graduate text-indigo-400"></i>
+            <span>Student Placement Profile</span>
+          </h2>
+          <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Auto-matches eligibility</span>
+        </div>
+
+        <div class="space-y-2.5 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">College USN *</label>
+              <input type="text" id="prof-usn" placeholder="e.g. 1DB23CS001" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 uppercase font-mono focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Full Name *</label>
+              <input type="text" id="prof-name" placeholder="Candidate Name" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Branch</label>
+              <select id="prof-branch" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+                <option value="CSE">CSE</option>
+                <option value="ISE">ISE</option>
+                <option value="AIML">AIML</option>
+                <option value="AIDS">AIDS</option>
+                <option value="ECE">ECE</option>
+                <option value="EEE">EEE</option>
+                <option value="MECH">MECH</option>
+                <option value="CIVIL">CIVIL</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">CGPA</label>
+              <input type="number" step="0.01" id="prof-cgpa" placeholder="7.80" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Batch</label>
+              <input type="number" id="prof-batch" value="2027" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">10th Board %</label>
+              <input type="number" step="0.1" id="prof-tenth" placeholder="88.5" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">12th / PUC %</label>
+              <input type="number" step="0.1" id="prof-twelfth" placeholder="84.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Active Backlogs</label>
+              <input type="number" id="prof-backlogs" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">College Email</label>
+            <input type="email" id="prof-email" placeholder="usn@college.edu.in" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Phone Number</label>
+            <input type="tel" id="prof-phone" placeholder="9876543210" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">Resume Google Drive Link</label>
+            <input type="url" id="prof-resume" placeholder="https://drive.google.com/file/d/.../view" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">LinkedIn Profile</label>
+              <input type="url" id="prof-linkedin" placeholder="https://linkedin.com/in/..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 uppercase mb-0.5">GitHub Profile</label>
+              <input type="url" id="prof-github" placeholder="https://github.com/..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 focus:border-indigo-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <button onclick="saveProfile()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/30">
+          Save Profile & Recalculate Eligibility
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 5: SETTINGS & SIMULATOR -->
+    <div id="view-settings" class="hidden space-y-4">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+        <h2 class="font-bold text-sm text-white flex items-center space-x-2">
+          <i class="fa-solid fa-sliders text-indigo-400"></i>
+          <span>App & Listener Settings</span>
+        </h2>
+
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Optional PDF / Attachment</label>
-          <div class="border-2 border-dashed border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center h-[120px] bg-slate-950/50 hover:border-indigo-500 cursor-pointer transition">
-            <input type="file" id="sim-file" accept=".pdf,.docx,.doc,image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500">
-            <span class="text-xs text-slate-500 mt-2">Upload Placement Circular Word (.docx), PDF, or Poster</span>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Target WhatsApp Group</label>
+          <div class="flex space-x-2">
+            <input type="text" id="target-group-input" placeholder="e.g. 2027 Placements" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <button onclick="saveTargetGroup()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg">Save</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gemini API Key</label>
+          <div class="flex space-x-2">
+            <input type="password" id="api-key-input" placeholder="Paste Gemini API key" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none">
+            <button onclick="saveApiKey()" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg">Save</button>
           </div>
         </div>
       </div>
 
-      <div class="mt-4 flex items-center justify-end space-x-3">
-        <button onclick="loadSample('new')" class="text-xs text-slate-400 hover:text-slate-200">Load New Drive Sample</button>
-        <span class="text-slate-700">|</span>
-        <button onclick="loadSample('update')" class="text-xs text-amber-400/80 hover:text-amber-300">Load Date Change Update Sample</button>
-        <button id="sim-submit-btn" onclick="submitSimulation()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm rounded-xl transition flex items-center space-x-2">
-          <span>Run Analyzer & Dispatch</span>
-          <i class="fa-solid fa-arrow-right text-xs"></i>
+      <!-- Quick Message Simulator -->
+      <div class="bg-slate-900 border border-indigo-500/30 rounded-xl p-4 space-y-2">
+        <h3 class="font-bold text-xs text-indigo-400 uppercase tracking-wider flex items-center space-x-1.5">
+          <i class="fa-solid fa-flask"></i>
+          <span>Simulate WhatsApp Placement Message</span>
+        </h3>
+        <textarea id="sim-text" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs focus:border-indigo-500 focus:outline-none" placeholder="Paste announcement message..."></textarea>
+        <div class="flex justify-between items-center">
+          <button onclick="loadSample('new')" class="text-[11px] text-indigo-400 font-medium">Sample New</button>
+          <button onclick="loadSample('update')" class="text-[11px] text-amber-400 font-medium">Sample Update</button>
+          <button onclick="submitSimulation()" class="px-3 py-1.5 bg-indigo-600 text-white font-semibold text-xs rounded-lg">Process</button>
+        </div>
+        <div id="sim-result" class="hidden p-2 rounded-lg text-[10px] font-mono whitespace-pre-wrap bg-slate-950 border border-slate-800"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- OA Prep Sheet Modal -->
+  <div id="prep-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+        <div>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">OA Intel & Prep Sheet</span>
+          <h2 id="prep-company" class="text-xl font-black text-white mt-1">Company Intel</h2>
+          <p id="prep-role" class="text-slate-400 text-xs">Assessment & Interview Breakdown</p>
+        </div>
+        <button onclick="closePrepModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <!-- Result Feedback -->
-      <div id="sim-result" class="hidden mt-4 p-4 rounded-xl text-xs font-mono"></div>
-    </div>
+      <div class="space-y-3 text-xs">
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">🎯 Exam Pattern & Timing</div>
+          <div id="prep-pattern" class="text-slate-200">Loading pattern...</div>
+          <div id="prep-marking" class="text-[11px] text-slate-400 mt-1"></div>
+        </div>
 
-    <!-- Controls: Filter & Search -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div class="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-slate-800" id="filter-tabs">
-        <button onclick="setFilter('all')" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white" data-status="all">All</button>
-        <button onclick="setFilter('Upcoming')" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white" data-status="Upcoming">Upcoming</button>
-        <button onclick="setFilter('Applied')" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white" data-status="Applied">Applied</button>
-        <button onclick="setFilter('Ongoing')" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white" data-status="Ongoing">Ongoing</button>
-        <button onclick="setFilter('Closed')" class="filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white" data-status="Closed">Closed</button>
+        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+          <div class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5">🔑 Top 3 Topics to Revise</div>
+          <ul id="prep-topics" class="space-y-1 text-slate-200 list-disc list-inside"></ul>
+        </div>
+
+        <div class="bg-slate-950 p-3 rounded-xl border border-amber-800/40">
+          <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">⚠️ Crucial Watchouts & Model</div>
+          <ul id="prep-watchouts" class="space-y-1 text-amber-200/90 list-disc list-inside text-[11px]"></ul>
+        </div>
       </div>
-      <div class="relative w-full sm:w-72">
-        <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
-        <input type="text" id="search-input" onkeyup="debounceSearch()" placeholder="Search company, role, eligibility..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-indigo-500 focus:outline-none text-slate-200">
-      </div>
     </div>
-
-    <!-- Drives Grid -->
-    <div id="drives-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Drives loaded via JS -->
-    </div>
-
-    <div id="empty-state" class="hidden text-center py-16 text-slate-500 space-y-3">
-      <i class="fa-solid fa-folder-open text-4xl"></i>
-      <p class="text-sm">No placement drives found. Ingest one via WhatsApp or click "Simulate Ingestion" above!</p>
-    </div>
-
   </div>
 
   <!-- Drive Details & Timeline Modal -->
-  <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto custom-scroll">
-      <div class="flex justify-between items-start border-b border-slate-800 pb-4">
+  <div id="details-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-t-2xl sm:rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto custom-scroll">
+      <div class="flex justify-between items-start border-b border-slate-800 pb-3">
         <div>
-          <span id="modal-job-type" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Full-time</span>
-          <h2 id="modal-company" class="text-2xl font-bold text-white mt-1">Company Name</h2>
-          <p id="modal-role" class="text-slate-400 text-sm">Role Description</p>
+          <span id="modal-job-type" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase">Full-time</span>
+          <h2 id="modal-company" class="text-xl font-black text-white mt-1">Company</h2>
+          <p id="modal-role" class="text-slate-400 text-xs">Role</p>
         </div>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white">
-          <i class="fa-solid fa-xmark text-xl"></i>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <div class="grid grid-cols-2 gap-4 text-sm bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+      <div class="grid grid-cols-2 gap-2 text-xs bg-slate-950 p-3 rounded-xl border border-slate-800">
         <div>
-          <div class="text-xs text-slate-500 uppercase font-semibold">Compensation / CTC</div>
-          <div id="modal-ctc" class="font-medium text-emerald-400 mt-0.5">Not disclosed</div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Package / CTC</div>
+          <div id="modal-ctc" class="font-semibold text-emerald-400 mt-0.5">Not disclosed</div>
         </div>
         <div>
-          <div class="text-xs text-slate-500 uppercase font-semibold">Application Deadline</div>
-          <div id="modal-deadline" class="font-medium text-amber-400 mt-0.5">TBD</div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Deadline</div>
+          <div id="modal-deadline" class="font-semibold text-amber-400 mt-0.5">TBD</div>
         </div>
         <div>
-          <div class="text-xs text-slate-500 uppercase font-semibold">Drive Date</div>
-          <div id="modal-drive-date" class="font-medium text-slate-200 mt-0.5">TBD</div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Drive Date</div>
+          <div id="modal-drive-date" class="font-medium text-slate-300 mt-0.5">TBD</div>
         </div>
         <div>
-          <div class="text-xs text-slate-500 uppercase font-semibold">Eligibility Criteria</div>
-          <div id="modal-eligibility" class="font-medium text-slate-300 mt-0.5">Check notification</div>
+          <div class="text-[10px] text-slate-500 uppercase font-bold">Eligibility</div>
+          <div id="modal-eligibility" class="font-medium text-slate-300 mt-0.5">Refer details</div>
         </div>
       </div>
 
-      <!-- Update Timeline Section -->
+      <!-- Eligibility Breakdown Card -->
+      <div id="modal-eligibility-box" class="p-3 rounded-xl border text-xs space-y-1"></div>
+
+      <!-- Update Timeline -->
       <div>
-        <h3 class="text-sm font-bold text-slate-300 flex items-center space-x-2 mb-3">
+        <h3 class="text-xs font-bold text-slate-300 flex items-center space-x-1.5 mb-2">
           <i class="fa-solid fa-timeline text-amber-400"></i>
-          <span>Coordinator Changes & Updates Timeline</span>
+          <span>Coordinator Changes & Timeline</span>
         </h3>
-        <div id="modal-updates-list" class="space-y-3">
-          <!-- Updates list injected here -->
-        </div>
-      </div>
-
-      <!-- Raw message view -->
-      <div>
-        <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Original WhatsApp Announcement</h3>
-        <div id="modal-raw" class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-400 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto custom-scroll"></div>
+        <div id="modal-updates-list" class="space-y-2 max-h-32 overflow-y-auto custom-scroll"></div>
       </div>
 
       <div class="flex justify-between items-center pt-2 border-t border-slate-800">
-        <div class="flex items-center space-x-2">
-          <label class="text-xs text-slate-400">Status:</label>
-          <select id="modal-status-select" onchange="changeDriveStatusFromModal()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2 py-1 text-slate-200 focus:outline-none">
-            <option value="Upcoming">Upcoming</option>
-            <option value="Applied">Applied</option>
-            <option value="Ongoing">Ongoing</option>
-            <option value="Shortlisted">Shortlisted</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Closed">Closed</option>
-          </select>
-        </div>
-        <a id="modal-apply-btn" href="#" target="_blank" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm rounded-xl transition flex items-center space-x-2">
-          <span>Open Application Link</span>
-          <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+        <select id="modal-status-select" onchange="changeDriveStatusFromModal()" class="bg-slate-950 border border-slate-800 text-xs rounded-lg px-2.5 py-1.5 text-slate-200">
+          <option value="Announced">Announced</option>
+          <option value="Applied">Applied</option>
+          <option value="Registered Confirmed">Registered Confirmed ✅</option>
+          <option value="OA Scheduled">OA Scheduled</option>
+          <option value="Shortlisted">Shortlisted 🎉</option>
+          <option value="Interview">Interview</option>
+          <option value="Offered">Offered 🏆</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <a id="modal-apply-btn" href="#" target="_blank" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg flex items-center space-x-1.5 shadow">
+          <span>Open Form</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
         </a>
       </div>
     </div>
   </div>
 
-  <script>
-    let currentFilter = 'all';
-    let activeModalDriveId = null;
-    let searchTimeout = null;
+  <!-- Bottom Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 px-3 py-2 flex justify-around items-center z-40 backdrop-blur">
+    <button onclick="switchTab('drives')" class="nav-btn flex flex-col items-center text-indigo-400 space-y-0.5" data-tab="drives">
+      <i class="fa-solid fa-briefcase text-base"></i>
+      <span class="text-[10px] font-bold">Drives</span>
+    </button>
+    <button onclick="switchTab('vault')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="vault">
+      <i class="fa-solid fa-shield-halved text-base"></i>
+      <span class="text-[10px] font-bold">Vault</span>
+    </button>
+    <button onclick="switchTab('verify')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="verify">
+      <i class="fa-solid fa-file-excel text-base"></i>
+      <span class="text-[10px] font-bold">Scan Sheet</span>
+    </button>
+    <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="profile">
+      <i class="fa-solid fa-user-graduate text-base"></i>
+      <span class="text-[10px] font-bold">Profile</span>
+    </button>
+    <button onclick="switchTab('settings')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5" data-tab="settings">
+      <i class="fa-solid fa-sliders text-base"></i>
+      <span class="text-[10px] font-bold">Settings</span>
+    </button>
+  </nav>
 
-    async function fetchStats() {
-      try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        document.getElementById('stat-total').textContent = data.total_drives || 0;
-        document.getElementById('stat-active').textContent = data.active_drives || 0;
-        document.getElementById('stat-applied').textContent = data.applied_drives || 0;
-        document.getElementById('stat-updates').textContent = data.total_updates || 0;
-      } catch (e) {
-        console.error("Failed to load stats", e);
-      }
+  <script>
+    const isAndroid = typeof window.AndroidBridge !== 'undefined';
+    let currentFilter = 'all';
+    let currentTab = 'drives';
+    let activeModalDriveId = null;
+    let studentProfile = {};
+    let cachedDrives = [];
+
+    // Toast helper
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none');
+      }, 2000);
     }
 
-    async function fetchDrives() {
-      const search = document.getElementById('search-input').value.trim();
-      let url = `/api/drives?status=${currentFilter}`;
-      if (search) url += `&search=${encodeURIComponent(search)}`;
-
-      try {
-        const res = await fetch(url);
-        const drives = await res.json();
-        renderDrives(drives);
-      } catch (e) {
-        console.error("Failed to fetch drives", e);
+    // Copy to clipboard helper
+    function copyText(val, label) {
+      if (!val) {
+        showToast(`No ${label} configured in Profile!`);
+        return;
       }
+      navigator.clipboard.writeText(val).then(() => {
+        showToast(`Copied ${label}!`);
+      }).catch(() => {
+        // Fallback
+        const el = document.createElement('textarea');
+        el.value = val;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        showToast(`Copied ${label}!`);
+      });
+    }
+
+    // Switch Bottom Tabs
+    function switchTab(tab) {
+      currentTab = tab;
+      ['drives', 'vault', 'verify', 'profile', 'settings'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+      });
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.tab === tab) {
+          btn.className = "nav-btn flex flex-col items-center text-indigo-400 space-y-0.5";
+        } else {
+          btn.className = "nav-btn flex flex-col items-center text-slate-400 hover:text-white space-y-0.5";
+        }
+      });
+
+      if (tab === 'vault') renderVault();
+      if (tab === 'profile') loadProfileForm();
+    }
+
+    function refreshAll() {
+      fetchProfile();
+      filterDrives();
+    }
+
+    function fetchProfile() {
+      if (isAndroid) {
+        try {
+          const raw = window.AndroidBridge.getProfile();
+          const p = JSON.parse(raw);
+          if (p && p.usn) {
+            studentProfile = p;
+            document.getElementById('header-usn-badge').textContent = `USN: ${studentProfile.usn}`;
+            loadProfileForm();
+            renderVault();
+            return;
+          }
+        } catch (e) {}
+      }
+      fetch('/api/profile').then(r => r.json()).then(p => {
+        studentProfile = p || {};
+        if (studentProfile.usn) {
+          document.getElementById('header-usn-badge').textContent = `USN: ${studentProfile.usn}`;
+        }
+        loadProfileForm();
+        renderVault();
+      }).catch(() => {});
+    }
+
+    function loadProfileForm() {
+      if (!studentProfile) return;
+      document.getElementById('prof-usn').value = studentProfile.usn || '';
+      document.getElementById('prof-name').value = studentProfile.full_name || '';
+      document.getElementById('prof-branch').value = studentProfile.branch || 'CSE';
+      document.getElementById('prof-cgpa').value = studentProfile.cgpa || '';
+      document.getElementById('prof-batch').value = studentProfile.grad_batch || 2027;
+      document.getElementById('prof-tenth').value = studentProfile.tenth_percentage || '';
+      document.getElementById('prof-twelfth').value = studentProfile.twelfth_percentage || '';
+      document.getElementById('prof-backlogs').value = studentProfile.active_backlogs || 0;
+      document.getElementById('prof-email').value = studentProfile.email || '';
+      document.getElementById('prof-phone').value = studentProfile.phone || '';
+      document.getElementById('prof-resume').value = studentProfile.resume_link || '';
+      document.getElementById('prof-linkedin').value = studentProfile.linkedin_url || '';
+      document.getElementById('prof-github').value = studentProfile.github_url || '';
+    }
+
+    function saveProfile() {
+      const payload = {
+        usn: document.getElementById('prof-usn').value.trim(),
+        full_name: document.getElementById('prof-name').value.trim(),
+        branch: document.getElementById('prof-branch').value,
+        cgpa: parseFloat(document.getElementById('prof-cgpa').value) || 0.0,
+        grad_batch: parseInt(document.getElementById('prof-batch').value) || 2027,
+        tenth_percentage: parseFloat(document.getElementById('prof-tenth').value) || 0.0,
+        twelfth_percentage: parseFloat(document.getElementById('prof-twelfth').value) || 0.0,
+        active_backlogs: parseInt(document.getElementById('prof-backlogs').value) || 0,
+        email: document.getElementById('prof-email').value.trim(),
+        phone: document.getElementById('prof-phone').value.trim(),
+        resume_link: document.getElementById('prof-resume').value.trim(),
+        linkedin_url: document.getElementById('prof-linkedin').value.trim(),
+        github_url: document.getElementById('prof-github').value.trim()
+      };
+
+      if (isAndroid) {
+        try {
+          window.AndroidBridge.saveProfile(JSON.stringify(payload));
+          studentProfile = payload;
+          showToast('Profile saved & eligibility refreshed!');
+          refreshAll();
+          switchTab('drives');
+          return;
+        } catch (e) {}
+      }
+
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).then(p => {
+        studentProfile = p;
+        showToast('Profile saved & eligibility refreshed!');
+        refreshAll();
+        switchTab('drives');
+      });
+    }
+
+    // Render 1-Tap Copy Vault
+    function renderVault() {
+      const container = document.getElementById('vault-items');
+      container.innerHTML = '';
+
+      const items = [
+        { label: 'College USN', val: studentProfile.usn, icon: 'fa-id-card' },
+        { label: 'Full Name', val: studentProfile.full_name, icon: 'fa-user' },
+        { label: 'College Email', val: studentProfile.email, icon: 'fa-envelope' },
+        { label: 'Phone', val: studentProfile.phone, icon: 'fa-phone' },
+        { label: 'CGPA', val: studentProfile.cgpa ? `${studentProfile.cgpa} CGPA` : '', raw: studentProfile.cgpa, icon: 'fa-chart-line' },
+        { label: '10th Board %', val: studentProfile.tenth_percentage ? `${studentProfile.tenth_percentage}%` : '', raw: studentProfile.tenth_percentage, icon: 'fa-school' },
+        { label: '12th / PUC %', val: studentProfile.twelfth_percentage ? `${studentProfile.twelfth_percentage}%` : '', raw: studentProfile.twelfth_percentage, icon: 'fa-building-columns' },
+        { label: 'Branch', val: studentProfile.branch, icon: 'fa-code-branch' },
+        { label: 'Active Backlogs', val: String(studentProfile.active_backlogs ?? 0), icon: 'fa-triangle-exclamation' },
+        { label: 'Resume Drive Link', val: studentProfile.resume_link, icon: 'fa-file-pdf' },
+        { label: 'LinkedIn URL', val: studentProfile.linkedin_url, icon: 'fa-linkedin', brand: true },
+        { label: 'GitHub URL', val: studentProfile.github_url, icon: 'fa-github', brand: true }
+      ];
+
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl p-3 flex items-center justify-between cursor-pointer active:scale-95 transition shadow-sm";
+        card.onclick = () => copyText(item.raw || item.val, item.label);
+
+        const iconClass = item.brand ? `fa-brands ${item.icon}` : `fa-solid ${item.icon}`;
+
+        card.innerHTML = `
+          <div class="flex items-center space-x-2.5 overflow-hidden pr-2">
+            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 text-xs shrink-0">
+              <i class="${iconClass}"></i>
+            </div>
+            <div class="overflow-hidden">
+              <div class="text-[10px] text-slate-500 uppercase font-bold">${escapeHtml(item.label)}</div>
+              <div class="text-xs font-semibold text-white truncate">${escapeHtml(item.val || 'Not set')}</div>
+            </div>
+          </div>
+          <div class="p-1.5 rounded-md bg-indigo-600/10 text-indigo-400 text-xs shrink-0">
+            <i class="fa-regular fa-clone"></i>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Filter and Render Drives
+    function filterDrives() {
+      const search = document.getElementById('search-input').value.trim();
+      let url = `/api/drives`;
+      const params = [];
+      if (currentFilter !== 'all' && currentFilter !== 'eligible') {
+        params.push(`status=${encodeURIComponent(currentFilter)}`);
+      }
+      if (search) params.push(`search=${encodeURIComponent(search)}`);
+      if (params.length) url += `?` + params.join('&');
+
+      fetch(url).then(r => r.json()).then(drives => {
+        cachedDrives = drives;
+        if (currentFilter === 'eligible') {
+          renderDrives(drives.filter(d => d.eligibility && d.eligibility.is_eligible));
+        } else {
+          renderDrives(drives);
+        }
+      });
     }
 
     function renderDrives(drives) {
@@ -271,85 +613,140 @@
       emptyState.classList.add('hidden');
 
       drives.forEach(d => {
-        const statusColors = {
-          'Upcoming': 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-          'Applied': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-          'Ongoing': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-          'Shortlisted': 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-          'Rejected': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-          'Closed': 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-        };
-        const statusClass = statusColors[d.status] || statusColors['Upcoming'];
+        const isEligible = d.eligibility ? d.eligibility.is_eligible : true;
+        const eligBadge = isEligible 
+          ? `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>Eligible</span></span>`
+          : `<span class="bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1"><i class="fa-solid fa-xmark"></i><span>Ineligible</span></span>`;
+
+        const appStatus = d.app_status || d.status || 'Announced';
+        let statusBadgeClass = 'bg-slate-800 text-slate-300';
+        if (appStatus.includes('Confirmed')) statusBadgeClass = 'bg-emerald-600 text-white font-bold';
+        else if (appStatus.includes('Shortlisted')) statusBadgeClass = 'bg-purple-600 text-white font-bold';
+        else if (appStatus === 'Applied') statusBadgeClass = 'bg-blue-600 text-white';
 
         const card = document.createElement('div');
-        card.className = "bg-slate-900 border border-slate-800 hover:border-slate-700 transition rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4";
-        card.innerHTML = `
-          <div>
-            <div class="flex items-start justify-between">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${statusClass}">
-                  ${d.status}
-                </span>
-                <h3 class="text-lg font-bold text-white mt-1.5">${escapeHtml(d.company_name)}</h3>
-                <p class="text-xs text-slate-400">${escapeHtml(d.role)} • <span class="text-indigo-400 font-medium">${escapeHtml(d.job_type)}</span></p>
-              </div>
-              <button onclick="openModal(${d.id})" class="text-slate-400 hover:text-white p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition text-xs" title="View Full Details">
-                <i class="fa-solid fa-expand"></i>
-              </button>
-            </div>
+        card.className = "bg-slate-900 border border-slate-800 rounded-xl p-3.5 shadow-sm space-y-2.5 active:border-indigo-500/50 transition";
+        card.onclick = (e) => {
+          if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A' && e.target.tagName !== 'I') {
+            openModal(d.id);
+          }
+        };
 
-            <div class="mt-4 space-y-2 text-xs">
-              <div class="flex justify-between py-1 border-b border-slate-800/60">
-                <span class="text-slate-500">Package / CTC</span>
-                <span class="font-semibold text-emerald-400">${escapeHtml(d.ctc_or_stipend || 'Not disclosed')}</span>
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${statusBadgeClass}">
+                  ${escapeHtml(appStatus)}
+                </span>
+                ${eligBadge}
               </div>
-              <div class="flex justify-between py-1 border-b border-slate-800/60">
-                <span class="text-slate-500">Deadline</span>
-                <span class="font-semibold text-amber-400">${escapeHtml(d.deadline || 'TBD')}</span>
-              </div>
-              <div class="flex justify-between py-1">
-                <span class="text-slate-500">Eligibility</span>
-                <span class="text-slate-300 truncate max-w-[170px]" title="${escapeHtml(d.eligibility_criteria)}">${escapeHtml(d.eligibility_criteria || 'See link')}</span>
-              </div>
+              <h3 class="text-base font-black text-white mt-1">${escapeHtml(d.company_name)}</h3>
+              <p class="text-xs text-slate-400">${escapeHtml(d.role)} • <span class="text-indigo-400 font-medium">${escapeHtml(d.job_type)}</span></p>
             </div>
+            <button onclick="openModal(${d.id})" class="text-slate-500 hover:text-white p-1">
+              <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
           </div>
 
-          <div class="pt-3 border-t border-slate-800 flex items-center justify-between">
-            <select onchange="updateDriveStatus(${d.id}, this.value)" class="bg-slate-950 border border-slate-800 text-[11px] rounded-lg px-2 py-1 text-slate-300 focus:outline-none">
-              <option value="Upcoming" ${d.status === 'Upcoming' ? 'selected' : ''}>Upcoming</option>
-              <option value="Applied" ${d.status === 'Applied' ? 'selected' : ''}>Applied</option>
-              <option value="Ongoing" ${d.status === 'Ongoing' ? 'selected' : ''}>Ongoing</option>
-              <option value="Shortlisted" ${d.status === 'Shortlisted' ? 'selected' : ''}>Shortlisted</option>
-              <option value="Rejected" ${d.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-              <option value="Closed" ${d.status === 'Closed' ? 'selected' : ''}>Closed</option>
-            </select>
+          <div class="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-slate-800/80">
+            <div><span class="text-slate-500">Package:</span> <span class="text-emerald-400 font-semibold">${escapeHtml(d.ctc_or_stipend || 'Not disclosed')}</span></div>
+            <div><span class="text-slate-500">Deadline:</span> <span class="text-amber-400 font-semibold">${escapeHtml(d.deadline || 'TBD')}</span></div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex items-center justify-between pt-1 gap-2 border-t border-slate-800/40">
+            <button onclick="syncCalendar('${escapeHtml(d.company_name)}', '${escapeHtml(d.deadline)}', '${escapeHtml(d.apply_link || '')}')" class="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1">
+              <i class="fa-regular fa-calendar-plus text-indigo-400"></i>
+              <span>Calendar</span>
+            </button>
+            <button onclick="openPrepModal(${d.id})" class="flex-1 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-[11px] font-semibold rounded-lg flex items-center justify-center space-x-1 border border-amber-500/20">
+              <i class="fa-solid fa-lightbulb text-amber-400"></i>
+              <span>OA Intel</span>
+            </button>
             ${d.apply_link ? `
-              <a href="${d.apply_link}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 flex items-center space-x-1 font-medium">
+              <a href="${escapeHtml(d.apply_link)}" target="_blank" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg flex items-center justify-center space-x-1 shadow">
                 <span>Apply</span>
-                <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
               </a>
-            ` : '<span class="text-xs text-slate-600">No link</span>'}
+            ` : ''}
           </div>
         `;
         container.appendChild(card);
       });
     }
 
-    async function openModal(id) {
-      activeModalDriveId = id;
-      try {
-        const res = await fetch(`/api/drives/${id}`);
-        const drive = await res.json();
+    // Google Calendar Sync Helper
+    function syncCalendar(company, deadline, applyLink) {
+      const title = encodeURIComponent(`Deadline: ${company} Placement Form`);
+      const details = encodeURIComponent(`Campus Drive Registration Deadline for ${company}.\nApply link: ${applyLink}\nMake sure your form is submitted before closing!`);
+      // Standard ISO timestamp for calendar intent
+      const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=Online`;
+      window.open(gcalUrl, '_blank');
+      showToast('Opening Google Calendar...');
+    }
 
+    // OA Prep Modal
+    function openPrepModal(driveId) {
+      fetch(`/api/drives/${driveId}/prep-pack`).then(r => r.json()).then(pack => {
+        document.getElementById('prep-company').textContent = pack.company || 'Company Intel';
+        document.getElementById('prep-pattern').textContent = pack.exam_pattern || 'Standard Online Assessment';
+        document.getElementById('prep-marking').textContent = pack.negative_marking ? `Marking: ${pack.negative_marking}` : '';
+
+        const topicsList = document.getElementById('prep-topics');
+        topicsList.innerHTML = '';
+        (pack.top_topics || []).forEach(t => {
+          const li = document.createElement('li');
+          li.textContent = t;
+          topicsList.appendChild(li);
+        });
+
+        const watchoutsList = document.getElementById('prep-watchouts');
+        watchoutsList.innerHTML = '';
+        (pack.watchouts || []).forEach(w => {
+          const li = document.createElement('li');
+          li.textContent = w;
+          watchoutsList.appendChild(li);
+        });
+
+        document.getElementById('prep-modal').classList.remove('hidden');
+      });
+    }
+
+    function closePrepModal() {
+      document.getElementById('prep-modal').classList.add('hidden');
+    }
+
+    // Modal Drive Details
+    function openModal(id) {
+      activeModalDriveId = id;
+      fetch(`/api/drives/${id}`).then(r => r.json()).then(drive => {
         document.getElementById('modal-company').textContent = drive.company_name;
         document.getElementById('modal-role').textContent = `${drive.role} (${drive.job_type})`;
         document.getElementById('modal-job-type').textContent = drive.job_type;
         document.getElementById('modal-ctc').textContent = drive.ctc_or_stipend || 'Not disclosed';
         document.getElementById('modal-deadline').textContent = drive.deadline || 'TBD';
         document.getElementById('modal-drive-date').textContent = drive.drive_date || 'TBD';
-        document.getElementById('modal-eligibility').textContent = drive.eligibility_criteria || 'Check details';
-        document.getElementById('modal-raw').textContent = drive.raw_message || 'No raw announcement recorded';
-        document.getElementById('modal-status-select').value = drive.status;
+        document.getElementById('modal-eligibility').textContent = drive.eligibility_criteria || 'Refer details';
+        document.getElementById('modal-status-select').value = drive.app_status || drive.status || 'Announced';
+
+        // Eligibility breakdown box
+        const eligBox = document.getElementById('modal-eligibility-box');
+        if (drive.eligibility) {
+          const isElig = drive.eligibility.is_eligible;
+          eligBox.className = isElig 
+            ? "p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs space-y-1" 
+            : "p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-xs space-y-1";
+          eligBox.innerHTML = `
+            <div class="font-bold flex items-center space-x-1.5 ${isElig ? 'text-emerald-400' : 'text-rose-400'}">
+              <i class="${isElig ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'}"></i>
+              <span>${isElig ? 'You Are 100% Eligible for this Drive' : 'Eligibility Criteria Mismatch'}</span>
+            </div>
+            <ul class="list-disc list-inside text-[11px] text-slate-300">
+              ${(drive.eligibility.reasons || []).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+            </ul>
+          `;
+        }
 
         const applyBtn = document.getElementById('modal-apply-btn');
         if (drive.apply_link) {
@@ -359,31 +756,28 @@
           applyBtn.classList.add('hidden');
         }
 
-        // Render updates timeline
+        // Updates timeline
         const updatesContainer = document.getElementById('modal-updates-list');
         updatesContainer.innerHTML = '';
         if (drive.updates && drive.updates.length > 0) {
           drive.updates.forEach(u => {
             const item = document.createElement('div');
-            item.className = "p-3 bg-slate-950 rounded-xl border border-slate-800/80 text-xs space-y-1";
+            item.className = "p-2 bg-slate-950 rounded-lg border border-slate-800/80 text-[11px] space-y-0.5";
             item.innerHTML = `
-              <div class="flex justify-between items-center text-slate-400">
-                <span class="font-semibold text-amber-400 uppercase tracking-wider">${escapeHtml(u.field_changed)} Changed</span>
-                <span class="text-[10px] text-slate-500">${u.created_at}</span>
+              <div class="flex justify-between items-center text-slate-500 text-[10px]">
+                <span class="font-bold text-amber-400 uppercase">${escapeHtml(u.field_changed)}</span>
+                <span>${u.created_at || ''}</span>
               </div>
               <p class="text-slate-200">${escapeHtml(u.change_summary)}</p>
-              ${u.old_value ? `<div class="text-[11px] text-slate-500"><span class="line-through">${escapeHtml(u.old_value)}</span> ➔ <span class="text-emerald-400 font-medium">${escapeHtml(u.new_value)}</span></div>` : ''}
             `;
             updatesContainer.appendChild(item);
           });
         } else {
-          updatesContainer.innerHTML = '<div class="text-xs text-slate-500 italic">No updates or amendments recorded yet. Original post holds.</div>';
+          updatesContainer.innerHTML = '<div class="text-[11px] text-slate-500 italic">No amendments posted. Original circular holds.</div>';
         }
 
         document.getElementById('details-modal').classList.remove('hidden');
-      } catch (e) {
-        alert("Failed to load drive details");
-      }
+      });
     }
 
     function closeModal() {
@@ -391,110 +785,93 @@
       activeModalDriveId = null;
     }
 
-    async function changeDriveStatusFromModal() {
+    function changeDriveStatusFromModal() {
       if (!activeModalDriveId) return;
-      const status = document.getElementById('modal-status-select').value;
-      await updateDriveStatus(activeModalDriveId, status);
-    }
-
-    async function updateDriveStatus(id, newStatus) {
-      try {
-        await fetch(`/api/drives/${id}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
-        });
-        fetchStats();
-        fetchDrives();
-      } catch (e) {
-        console.error("Failed to update status", e);
-      }
+      const app_status = document.getElementById('modal-status-select').value;
+      fetch(`/api/drives/${activeModalDriveId}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ app_status, status: app_status })
+      }).then(() => {
+        showToast('Application status updated!');
+        filterDrives();
+      });
     }
 
     function setFilter(status) {
       currentFilter = status;
       document.querySelectorAll('.filter-tab').forEach(b => {
         if (b.dataset.status === status) {
-          b.className = "filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white";
+          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white whitespace-nowrap";
         } else {
-          b.className = "filter-tab px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white";
+          b.className = "filter-tab px-3 py-1 rounded-full text-xs font-semibold bg-slate-900 border border-slate-800 text-slate-400 whitespace-nowrap";
         }
       });
-      fetchDrives();
+      filterDrives();
     }
 
-    function debounceSearch() {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        fetchDrives();
-      }, 300);
-    }
-
-    function toggleSimulator() {
-      const panel = document.getElementById('simulator-panel');
-      panel.classList.toggle('hidden');
-    }
-
-    function loadSample(type) {
-      if (type === 'new') {
-        document.getElementById('sim-text').value = 
-`Dear Students,\n\nGoogle is conducting campus drive for Software Engineer Intern (2026 Batch).\n\nStipend: 1,20,000 per month\nEligibility: B.Tech CSE/IT/ECE with CGPA >= 7.5 and no active backlogs.\nDrive Date: 12th October 2026\nLast Date to Register: 28th September 2026 5:00 PM\nRegistration Link: https://forms.gle/GooglePlacement2026Sample\n\nEnsure resume matches Google guidelines.`;
-      } else {
-        document.getElementById('sim-text').value = 
-`URGENT UPDATE regarding Google Drive:\n\nGoogle registration deadline has been extended from 28th September to 30th September 2026, 11:59 PM.\nAlso, Mechanical and Civil students with CGPA >= 8.5 are now also permitted to apply.`;
-      }
-    }
-
-    async function submitSimulation() {
-      const text = document.getElementById('sim-text').value.trim();
-      const fileInput = document.getElementById('sim-file');
-      const resultBox = document.getElementById('sim-result');
-      const submitBtn = document.getElementById('sim-submit-btn');
-
-      if (!text && fileInput.files.length === 0) {
-        alert("Please provide either message text or upload a document.");
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Processing...</span>';
-
+    // Verify Sheet Upload Handler
+    function handleFileUpload(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
       const formData = new FormData();
-      if (text) formData.append('text', text);
-      if (fileInput.files.length > 0) formData.append('file', fileInput.files[0]);
+      formData.append('file', file);
+      if (studentProfile.usn) formData.append('usn', studentProfile.usn);
 
-      try {
-        const res = await fetch('/api/webhook/incoming', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        resultBox.classList.remove('hidden');
-        resultBox.className = "mt-4 p-4 rounded-xl text-xs font-mono bg-slate-950 border border-emerald-500/40 text-emerald-300";
-        resultBox.textContent = JSON.stringify(data, null, 2);
+      const loading = document.getElementById('scan-loading');
+      const resultCard = document.getElementById('scan-result-card');
+      loading.classList.remove('hidden');
+      resultCard.classList.add('hidden');
 
-        fetchStats();
-        fetchDrives();
-      } catch (e) {
-        resultBox.classList.remove('hidden');
-        resultBox.className = "mt-4 p-4 rounded-xl text-xs font-mono bg-slate-950 border border-rose-500/40 text-rose-300";
-        resultBox.textContent = "Error: " + e.message;
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Run Analyzer & Dispatch</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
-      }
+      fetch('/api/verify-file', {
+        method: 'POST',
+        body: formData
+      }).then(r => r.json()).then(res => {
+        loading.classList.add('hidden');
+        resultCard.classList.remove('hidden');
+
+        if (res.status === 'matched') {
+          const isReg = res.verification_type === 'REGISTRATION_CONFIRMATION';
+          resultCard.className = isReg 
+            ? "rounded-xl p-3.5 space-y-2 border border-emerald-500/40 bg-emerald-950/30 text-emerald-200" 
+            : "rounded-xl p-3.5 space-y-2 border border-purple-500/40 bg-purple-950/30 text-purple-200";
+
+          resultCard.innerHTML = `
+            <div class="flex items-center space-x-2 font-bold text-sm">
+              <i class="${isReg ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-trophy text-amber-400'}"></i>
+              <span>${isReg ? 'Registration Successfully Confirmed!' : 'Shortlisted for Next Round!'}</span>
+            </div>
+            <p class="text-xs">${escapeHtml(res.summary)}</p>
+            <div class="text-[11px] bg-slate-950/70 p-2 rounded border border-slate-800 font-mono text-slate-300">
+              Matched Row: ${escapeHtml((res.matched_row || []).join(' | '))}
+            </div>
+          `;
+          showToast(isReg ? 'Registration Confirmed!' : 'Shortlisted!');
+        } else {
+          resultCard.className = "rounded-xl p-3.5 space-y-2 border border-amber-500/40 bg-amber-950/30 text-amber-200";
+          resultCard.innerHTML = `
+            <div class="flex items-center space-x-2 font-bold text-sm text-amber-400">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>USN Not Found in this List</span>
+            </div>
+            <p class="text-xs">${escapeHtml(res.summary)}</p>
+            <p class="text-[11px] text-slate-400">If you submitted the Google Form, please verify that your submission went through or alert the placement coordinator.</p>
+          `;
+        }
+        refreshAll();
+      }).catch(err => {
+        loading.classList.add('hidden');
+        alert('Error scanning sheet: ' + err);
+      });
     }
 
     function escapeHtml(str) {
       if (!str) return '';
-      return String(str).replace(/[&<>"']/g, function(m) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
-      });
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
     }
 
-    // Initial load
-    fetchStats();
-    fetchDrives();
+    // Init
+    refreshAll();
   </script>
 </body>
 </html>

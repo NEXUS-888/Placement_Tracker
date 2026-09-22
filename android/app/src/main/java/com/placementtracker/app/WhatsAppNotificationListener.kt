@@ -29,6 +29,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        val fullContent = if (bigText.isNotEmpty()) bigText else text
 
         val prefs = applicationContext.getSharedPreferences("placement_prefs", android.content.Context.MODE_PRIVATE)
         val targetGroup = prefs.getString("target_group_name", "")?.trim() ?: ""

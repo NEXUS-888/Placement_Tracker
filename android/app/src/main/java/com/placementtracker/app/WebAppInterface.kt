@@ -89,4 +89,20 @@ class WebAppInterface(private val activity: Activity) {
             PlacementAnalyzer.analyzeAndProcess(activity, text).toString()
         }
     }
+
+    @JavascriptInterface
+    fun getProfile(): String {
+        return activity.getSharedPreferences("placement_prefs", android.content.Context.MODE_PRIVATE)
+            .getString("student_profile_json", "{}") ?: "{}"
+    }
+
+    @JavascriptInterface
+    fun saveProfile(profileJson: String): Boolean {
+        activity.getSharedPreferences("placement_prefs", android.content.Context.MODE_PRIVATE)
+            .edit()
+            .putString("student_profile_json", profileJson)
+            .apply()
+        return true
+    }
 }
+
