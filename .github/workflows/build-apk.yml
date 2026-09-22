@@ -38,12 +38,9 @@ jobs:
           ANDROID_HOME: /usr/local/lib/android/sdk
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleDebug --stacktrace
-          fi
+          gradle wrapper --gradle-version 8.5
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - name: Rename APK
         run: |
