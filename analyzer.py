@@ -28,6 +28,54 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         print(f"[Analyzer] Error extracting PDF {pdf_path}: {e}")
         return ""
 
+def extract_text_and_links_from_docx(docx_path: str) -> str:
+    """Extracts text content and all embedded hyperlinks from a Word .docx file."""
+    import zipfile
+    import xml.etree.ElementTree as ET
+    try:
+        with zipfile.ZipFile(docx_path) as docx:
+            # 1. Read relationships to extract embedded hyperlinks
+            rels = {}
+            if 'word/_rels/document.xml.rels' in docx.namelist():
+                rels_xml = docx.read('word/_rels/document.xml.rels')
+                rels_tree = ET.fromstring(rels_xml)
+                for rel in rels_tree:
+                    if 'Hyperlink' in rel.attrib.get('Type', ''):
+                        rels[rel.attrib.get('Id')] = rel.attrib.get('Target', '')
+
+            # 2. Read document XML paragraphs and tables
+            xml_content = docx.read('word/document.xml')
+            tree = ET.fromstring(xml_content)
+
+            full_text = []
+            for p in tree.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):
+                p_texts = []
+                for elem in p.iter():
+                    if elem.tag.endswith('hyperlink'):
+                        r_id = elem.attrib.get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+                        if r_id in rels:
+                            p_texts.append(f" [Link: {rels[r_id]}] ")
+                    elif elem.tag.endswith('t') and elem.text:
+                        p_texts.append(elem.text)
+                if p_texts:
+                    full_text.append(''.join(p_texts))
+
+            # Also extract from tables
+            for table in tree.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tbl'):
+                for row in table.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tr'):
+                    row_texts = []
+                    for cell in row.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}tc'):
+                        cell_text = ''.join(cell.itertext()).strip()
+                        if cell_text:
+                            row_texts.append(cell_text)
+                    if row_texts:
+                        full_text.append(' | '.join(row_texts))
+
+            return '\n'.join(full_text)
+    except Exception as e:
+        print(f"[Analyzer] Error extracting Word document {docx_path}: {e}")
+        return ""
+
 def call_gemini(prompt: str, content_text: str) -> Optional[Dict[str, Any]]:
     """Calls Gemini 1.5 Flash REST API with structured prompt and returns parsed JSON."""
     api_key = os.getenv("GEMINI_API_KEY", GEMINI_API_KEY).strip()
@@ -35,7 +83,7 @@ def call_gemini(prompt: str, content_text: str) -> Optional[Dict[str, Any]]:
         print("[Analyzer] No GEMINI_API_KEY configured. Falling back to local heuristic extraction.")
         return None
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={api_key}"
+    models_to_try = ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"]
     
     system_instruction = """
 You are an expert College Placement Drive and Internship Information Extractor.
@@ -46,7 +94,7 @@ Schema:
 {
   "is_placement_related": true/false,
   "message_type": "NEW_DRIVE" | "UPDATE_DRIVE" | "GENERAL_ANNOUNCEMENT",
-  "company_name": "Name of Company or 'Unknown'",
+  "company_name": "Name of Company (e.g. Besant Technologies)",
   "role": "Job Role / Designation",
   "job_type": "Full-time" | "Internship" | "Both",
   "ctc_or_stipend": "Stipend or CTC package details (e.g. 14 LPA, 40k/month)",
@@ -66,7 +114,7 @@ Schema:
         "contents": [
             {
                 "parts": [
-                    {"text": f"{system_instruction}\n\nContext & Message to analyze:\n{content_text}"}
+                    {"text": f"{system_instruction}\n\nContext & Message to analyze:\n{content_text[:8000]}"}
                 ]
             }
         ],
@@ -76,40 +124,47 @@ Schema:
         }
     }
 
-    try:
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data_bytes,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res_json = json.loads(response.read().decode("utf-8"))
-            candidate = res_json.get("candidates", [{}])[0]
-            part = candidate.get("content", {}).get("parts", [{}])[0]
-            raw_text = part.get("text", "{}").strip()
-            
-            if raw_text.startswith("```json"):
-                raw_text = raw_text[7:]
-            if raw_text.startswith("```"):
-                raw_text = raw_text[3:]
-            if raw_text.endswith("```"):
-                raw_text = raw_text[:-3]
-                
-            return json.loads(raw_text.strip())
-    except Exception as e:
-        print(f"[Analyzer] Gemini API call failed: {e}")
-        return None
+    data_bytes = json.dumps(payload).encode("utf-8")
 
-def heuristic_fallback_extract(text: str) -> Dict[str, Any]:
-    """Lightweight regex/keyword extraction if Gemini key is not set or offline."""
-    urls = re.findall(r'https?://[^\s<>"]+|www\.[^\s<>"]+', text)
-    apply_link = urls[0] if urls else ""
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            req = urllib.request.Request(
+                url,
+                data=data_bytes,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=12) as response:
+                res_json = json.loads(response.read().decode("utf-8"))
+                candidate = res_json.get("candidates", [{}])[0]
+                part = candidate.get("content", {}).get("parts", [{}])[0]
+                raw_text = part.get("text", "{}").strip()
+                
+                if raw_text.startswith("```json"):
+                    raw_text = raw_text[7:]
+                if raw_text.startswith("```"):
+                    raw_text = raw_text[3:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+                    
+                return json.loads(raw_text.strip())
+        except Exception as e:
+            continue
+
+    print("[Analyzer] All Gemini models busy/unreachable. Using local circular heuristic extractor.")
+    return None
+
+def heuristic_fallback_extract(text: str, filename: Optional[str] = None) -> Dict[str, Any]:
+    """Lightweight regex/keyword extraction for placement circulars and Word docs."""
+    # 1. Registration links: Prioritize forms (forms.gle, google docs, typeform) over institution domains
+    all_urls = re.findall(r'https?://[^\s<>"\')]+', text)
+    form_urls = [u for u in all_urls if any(k in u.lower() for k in ("forms.gle", "forms.office", "docs.google.com", "form", "register", "apply"))]
+    apply_link = form_urls[0] if form_urls else (all_urls[0] if all_urls else "")
 
     is_update = bool(re.search(r'\b(update|postponed|rescheduled|extended|revised|amendment|date changed)\b', text, re.I))
 
-    # Match against existing companies in DB first
+    # 2. Company Name
     company = None
     all_drives = db.get_all_drives()
     for d in all_drives:
@@ -118,37 +173,68 @@ def heuristic_fallback_extract(text: str) -> Dict[str, Any]:
             company = c_name
             break
 
-    # If not found in DB, search with regex
+    # If not found in DB, check filename (e.g. DBIT-T&P-2027-032-Besant Technologies.docx)
+    if not company and filename:
+        name_no_ext = re.sub(r'\.(docx?|pdf)$', '', filename, flags=re.I)
+        parts = [p.strip() for p in re.split(r'[-_]', name_no_ext) if p.strip()]
+        for part in reversed(parts):
+            if not re.search(r'^(dbit|t&p|batch|\d+|placement|drive)$', part, re.I) and len(part) > 2:
+                company = part
+                break
+
+    # Check "Greetings from <Company>"
+    if not company:
+        m_greet = re.search(r'Greetings from\s+([A-Z][A-Za-z0-9\s&]{2,30})[\.,\n\r]', text)
+        if m_greet:
+            company = m_greet.group(1).strip()
+
+    # Check "Who We Are:\s*<Company>"
+    if not company:
+        m_who = re.search(r'Who We Are:\s*([A-Z][A-Za-z0-9\s&]{2,30})', text)
+        if m_who:
+            company = m_who.group(1).strip()
+
+    # Regex candidates
     if not company:
         p1 = re.search(r'(?:company|firm|org)[\s:]+([A-Z][A-Za-z0-9\s&]{1,20})', text, re.I)
         p2 = re.search(r'([A-Z][A-Za-z0-9&]{1,20})\s+(?:is hiring|campus drive|recruitment|drive)', text, re.I)
         p3 = re.search(r'(?:hiring|drive|recruitment|campus|from|regarding|for)\s+([A-Z][A-Za-z0-9\s&]{2,25})', text, re.I)
         
         candidates = [m.group(1).strip() for m in (p1, p2, p3) if m]
-        blacklist = {"software", "software engineer", "dear students", "students", "batch", "interns", "engineers", "recruitment", "campus", "drive", "eligibility", "b.tech", "all", "attention students"}
+        blacklist = {"software", "software engineer", "dear students", "students", "batch", "interns", "engineers", "recruitment", "campus", "drive", "eligibility", "b.tech", "all", "attention students", "training & placement", "placement officer", "upcoming"}
         
         for cand in candidates:
-            if cand.lower() not in blacklist and not cand.lower().startswith("software") and not cand.lower().startswith("student"):
+            if cand.lower() not in blacklist and not cand.lower().startswith("software") and not cand.lower().startswith("student") and not cand.lower().startswith("training"):
                 company = cand
                 break
-        if not company:
-            company = "Company Mentioned"
 
+    if not company:
+        company = "Company Mentioned"
+
+    # 3. CTC / Stipend / Terms
     ctc_match = re.search(r'(\b\d+(?:\.\d+)?\s*(?:LPA|L|lakhs?|k|pm|per month)\b)', text, re.I)
-    ctc = ctc_match.group(1) if ctc_match else "Not disclosed"
+    ctc = ctc_match.group(1) if ctc_match else ("Unpaid Training + Direct Deployment" if "unpaid" in text.lower() else "Not disclosed")
 
+    # 4. Eligibility / Streams / Batch
+    elig_parts = []
+    m_streams = re.search(r'Streams:\s*([^\n\r]+)', text, re.I)
+    m_batch = re.search(r'Batch:\s*([^\n\r]+)', text, re.I)
     cgpa_match = re.search(r'(?:cgpa|cutoff|criteria)[\s:]*([0-9\.]+)', text, re.I)
-    eligibility = f"CGPA: {cgpa_match.group(1)}" if cgpa_match else "Refer message details"
 
-    # Deadline heuristic
-    deadline_match = re.search(r'(?:deadline|extended to|last date|register by)[\s:]*([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+(?:\s+[0-9]{4})?(?:\s+[0-9]{1,2}:[0-9]{2}\s*(?:AM|PM)?)?)', text, re.I)
-    deadline = deadline_match.group(1).strip() if deadline_match else "Check announcement text"
+    if m_streams: elig_parts.append(f"Streams: {m_streams.group(1).strip()}")
+    if m_batch: elig_parts.append(f"Batch: {m_batch.group(1).strip()}")
+    if cgpa_match: elig_parts.append(f"CGPA: {cgpa_match.group(1)}")
+    eligibility = " | ".join(elig_parts) if elig_parts else "Refer document details"
+
+    # 5. Deadline heuristic
+    m_dl = re.search(r'(?:deadline|last date|register by|submit your response:?)\s*(?:before)?[\s:]*([^\n\r]+)', text, re.I)
+    deadline = m_dl.group(1).strip() if m_dl else "Check announcement text"
 
     return {
         "is_placement_related": True,
         "message_type": "UPDATE_DRIVE" if is_update else "NEW_DRIVE",
         "company_name": company,
-        "role": "Software / Tech Role",
+        "role": "Campus Recruitment / Training & Deployment",
         "job_type": "Full-time",
         "ctc_or_stipend": ctc,
         "eligibility_criteria": eligibility,
@@ -174,17 +260,23 @@ def process_placement_message(
     5. Fires Discord notification.
     """
     full_content = message_text or ""
-    if file_path and file_path.lower().endswith(".pdf"):
-        pdf_text = extract_text_from_pdf(file_path)
-        if pdf_text:
-            full_content += f"\n\n[Attached PDF Content - {original_filename or 'Document'}]:\n{pdf_text[:10000]}"
+    if file_path:
+        f_lower = file_path.lower()
+        if f_lower.endswith(".pdf"):
+            pdf_text = extract_text_from_pdf(file_path)
+            if pdf_text:
+                full_content += f"\n\n[Attached PDF Content - {original_filename or 'Document'}]:\n{pdf_text[:12000]}"
+        elif f_lower.endswith(".docx") or f_lower.endswith(".doc"):
+            docx_text = extract_text_and_links_from_docx(file_path)
+            if docx_text:
+                full_content += f"\n\n[Attached Word Document - {original_filename or 'Document'}]:\n{docx_text[:12000]}"
 
     if not full_content.strip():
         return {"status": "ignored", "reason": "Empty content"}
 
     analysis = call_gemini("", full_content)
     if not analysis:
-        analysis = heuristic_fallback_extract(full_content)
+        analysis = heuristic_fallback_extract(full_content, original_filename)
 
     if not analysis.get("is_placement_related", True):
         return {"status": "ignored", "reason": "Not placement related"}
