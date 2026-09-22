@@ -212,8 +212,17 @@ def heuristic_fallback_extract(text: str, filename: Optional[str] = None) -> Dic
         company = "Company Mentioned"
 
     # 3. CTC / Stipend / Terms
-    ctc_match = re.search(r'(\b\d+(?:\.\d+)?\s*(?:LPA|L|lakhs?|k|pm|per month)\b)', text, re.I)
-    ctc = ctc_match.group(1) if ctc_match else ("Unpaid Training + Direct Deployment" if "unpaid" in text.lower() else "Not disclosed")
+    # Ensure we don't accidentally match clock times like 4:00 PM / 00PM
+    ctc_match = re.search(r'(?<!:)\b(?:₹|rs\.?|inr\s*)?(\d+(?:\.\d+)?\s*(?:LPA|Lakhs?|L\b|per month|/\s*month))\b', text, re.I)
+    if not ctc_match:
+        ctc_match = re.search(r'(?<!:)\b(\d+(?:\.\d+)?\s*k\b(?:\s*pm|\s*/\s*month)?)', text, re.I)
+    
+    if ctc_match:
+        ctc = ctc_match.group(1).strip()
+    elif "unpaid" in text.lower():
+        ctc = "Unpaid Training + Direct Deployment"
+    else:
+        ctc = "Not disclosed"
 
     # 4. Eligibility / Streams / Batch
     elig_parts = []
