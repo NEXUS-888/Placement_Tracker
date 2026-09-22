@@ -15,6 +15,7 @@ __pycache__/
 *.sqlite3
 uploads/
 *.log
+check_ci.py
 
 # Node & WhatsApp Session
 node_modules/

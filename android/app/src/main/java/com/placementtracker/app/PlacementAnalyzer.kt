@@ -190,7 +190,7 @@ object PlacementAnalyzer {
     }
 
     private fun localHeuristicExtract(context: Context, text: String): JSONObject {
-        val db = DatabaseHelper(context)
+        val db = DatabaseHelper.getInstance(context)
         var company: String? = null
 
         // Match against existing registered companies first
