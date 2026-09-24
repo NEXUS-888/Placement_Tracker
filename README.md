@@ -1,6 +1,6 @@
 # 🎓 Placement Tracker & Placement Terminal
 
-[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(v1.0.12)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/NEXUS-888/Placement_Tracker/releases/download/v1.0.12/PlacementTracker-v1.0.apk)
+[![Download Android APK](https://img.shields.io/badge/Download-Android%20APK%20(v1.0.15%20Signed%20Release)-00E5FF?style=for-the-badge&logo=android&logoColor=black)](https://github.com/NEXUS-888/Placement_Tracker/releases/download/v1.0.15/PlacementTracker-v1.0.apk)
 [![GitHub Release](https://img.shields.io/github/v/release/NEXUS-888/Placement_Tracker?style=for-the-badge&color=00F59B)](https://github.com/NEXUS-888/Placement_Tracker/releases)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -10,14 +10,22 @@ An intelligent, zero-heat placement companion built for engineering students. In
 
 ## 📲 Quick Download & Install (Android)
 
-Get the pre-built, production-ready APK directly on your Android phone:
+Get the signed, production-ready release APK directly on your Android phone:
 
-### 📥 [**Download PlacementTracker-v1.0.apk (5.48 MB)**](https://github.com/NEXUS-888/Placement_Tracker/releases/download/v1.0.12/PlacementTracker-v1.0.apk)
+### 📥 [**Download PlacementTracker-v1.0.apk (Signed Release)**](https://github.com/NEXUS-888/Placement_Tracker/releases/download/v1.0.15/PlacementTracker-v1.0.apk)
 
 > You can also browse all version tags on the [**GitHub Releases Page**](https://github.com/NEXUS-888/Placement_Tracker/releases).
 
+> [!TIP]
+> **🛡️ If Google Play Protect shows a prompt ("Unrecognised developer" / "Blocked by Play Protect"):**
+> 1. Do **NOT** tap "OK" (tapping OK cancels the installation).
+> 2. Tap **"More details"** (small link / dropdown arrow at the bottom of the prompt).
+> 3. Tap **"Install anyway"**.
+> 
+> *Why does this show?* Any APK sideloaded directly from GitHub (outside the Google Play Store) is flagged by Google's default scanner because it has not gone through Google's commercial store review. This app is 100% open source and has zero malicious code.
+
 ### 🛠️ 3-Step Phone Setup
-1. **Download & Install**: Tap the APK link above on your phone. If prompted by Android, tap *Settings* ➔ *Allow from this source*.
+1. **Download & Install**: Tap the APK link above on your phone. Follow the Play Protect prompt by tapping **More details ➔ Install anyway**.
 2. **Enable Notification Access**: Open the app and tap **Grant Notification Permission** on the top banner. This allows the app to passively intercept messages posted in your college placement WhatsApp groups without logging into WhatsApp Web.
 3. **Set Up Your Profile**: Enter your **USN**, Branch, and CGPA in the **Placement Vault** to activate automated eligibility checks and shortlist alarms.
 
