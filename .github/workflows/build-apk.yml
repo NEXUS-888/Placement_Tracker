@@ -42,12 +42,12 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.5
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Rename APK
         run: |
           mkdir -p release-apk
-          find android/app/build/outputs/apk/debug -name "*.apk" -exec cp {} release-apk/PlacementTracker-v1.0.apk \;
+          find android/app/build/outputs/apk/release -name "*.apk" -exec cp {} release-apk/PlacementTracker-v1.0.apk \;
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
